@@ -1,0 +1,263 @@
+/* QuickBite Modern JavaFX Stylesheet */
+
+.root {
+    -fx-font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+    -fx-font-size: 13px;
+    -fx-base: #FFFFFF;
+    -fx-background: #F8FAFC;
+}
+
+/* Header & Top Navigation Bar */
+.nav-bar {
+    -fx-background-color: #1E293B;
+    -fx-padding: 12px 24px;
+    -fx-alignment: CENTER_LEFT;
+    -fx-spacing: 16px;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 8, 0, 0, 2);
+}
+
+.brand-title {
+    -fx-font-size: 20px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #FF6B00;
+}
+
+.brand-subtitle {
+    -fx-font-size: 12px;
+    -fx-text-fill: #94A3B8;
+}
+
+.nav-user-label {
+    -fx-text-fill: #F1F5F9;
+    -fx-font-weight: bold;
+}
+
+.nav-role-badge {
+    -fx-background-color: #334155;
+    -fx-text-fill: #38BDF8;
+    -fx-padding: 3px 8px;
+    -fx-background-radius: 12px;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+}
+
+/* Buttons */
+.button {
+    -fx-cursor: hand;
+    -fx-background-radius: 6px;
+    -fx-padding: 8px 16px;
+    -fx-font-weight: bold;
+    -fx-transition: all 0.2s ease-in-out;
+}
+
+.btn-primary {
+    -fx-background-color: #FF6B00;
+    -fx-text-fill: white;
+}
+.btn-primary:hover {
+    -fx-background-color: #E05D00;
+}
+
+.btn-secondary {
+    -fx-background-color: #E2E8F0;
+    -fx-text-fill: #1E293B;
+}
+.btn-secondary:hover {
+    -fx-background-color: #CBD5E1;
+}
+
+.btn-success {
+    -fx-background-color: #10B981;
+    -fx-text-fill: white;
+}
+.btn-success:hover {
+    -fx-background-color: #059669;
+}
+
+.btn-danger {
+    -fx-background-color: #EF4444;
+    -fx-text-fill: white;
+}
+.btn-danger:hover {
+    -fx-background-color: #DC2626;
+}
+
+.btn-outline {
+    -fx-background-color: transparent;
+    -fx-border-color: #CBD5E1;
+    -fx-border-width: 1px;
+    -fx-border-radius: 6px;
+    -fx-text-fill: #334155;
+}
+.btn-outline:hover {
+    -fx-background-color: #F1F5F9;
+}
+
+/* Cards & Surfaces */
+.card {
+    -fx-background-color: #FFFFFF;
+    -fx-background-radius: 10px;
+    -fx-padding: 16px;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.06), 6, 0, 0, 2);
+    -fx-border-color: #E2E8F0;
+    -fx-border-radius: 10px;
+    -fx-border-width: 1px;
+}
+
+.card:hover {
+    -fx-effect: dropshadow(three-pass-box, rgba(255,107,0,0.15), 10, 0, 0, 4);
+}
+
+.stat-card {
+    -fx-background-color: #FFFFFF;
+    -fx-background-radius: 10px;
+    -fx-padding: 20px;
+    -fx-border-color: #E2E8F0;
+    -fx-border-radius: 10px;
+    -fx-border-width: 1px;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.04), 4, 0, 0, 1);
+}
+
+.stat-value {
+    -fx-font-size: 26px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #0F172A;
+}
+
+.stat-label {
+    -fx-font-size: 12px;
+    -fx-text-fill: #64748B;
+    -fx-font-weight: bold;
+}
+
+/* Category Filter Pills */
+.pill-button {
+    -fx-background-color: #E2E8F0;
+    -fx-text-fill: #475569;
+    -fx-background-radius: 20px;
+    -fx-padding: 6px 14px;
+    -fx-font-size: 12px;
+}
+.pill-button:hover {
+    -fx-background-color: #CBD5E1;
+}
+.pill-button-selected {
+    -fx-background-color: #FF6B00;
+    -fx-text-fill: white;
+    -fx-background-radius: 20px;
+    -fx-padding: 6px 14px;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+}
+
+/* Status Badges */
+.badge {
+    -fx-padding: 4px 10px;
+    -fx-background-radius: 12px;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+}
+
+.badge-placed {
+    -fx-background-color: #FEF3C7;
+    -fx-text-fill: #D97706;
+}
+
+.badge-confirmed {
+    -fx-background-color: #DBEAFE;
+    -fx-text-fill: #2563EB;
+}
+
+.badge-preparing {
+    -fx-background-color: #E0E7FF;
+    -fx-text-fill: #4F46E5;
+}
+
+.badge-ready {
+    -fx-background-color: #F3E8FF;
+    -fx-text-fill: #9333EA;
+}
+
+.badge-out {
+    -fx-background-color: #FFEDD5;
+    -fx-text-fill: #EA580C;
+}
+
+.badge-delivered {
+    -fx-background-color: #D1FAE5;
+    -fx-text-fill: #059669;
+}
+
+.badge-cancelled {
+    -fx-background-color: #FEE2E2;
+    -fx-text-fill: #DC2626;
+}
+
+/* Tables */
+.table-view {
+    -fx-background-color: #FFFFFF;
+    -fx-border-color: #E2E8F0;
+    -fx-border-radius: 8px;
+    -fx-background-radius: 8px;
+}
+
+.table-view .column-header {
+    -fx-background-color: #F8FAFC;
+    -fx-font-weight: bold;
+    -fx-text-fill: #475569;
+    -fx-border-color: #E2E8F0;
+    -fx-border-width: 0 0 1px 0;
+    -fx-padding: 10px;
+}
+
+.table-row-cell {
+    -fx-background-color: #FFFFFF;
+    -fx-border-color: #F1F5F9;
+    -fx-border-width: 0 0 1px 0;
+}
+.table-row-cell:odd {
+    -fx-background-color: #FAFAFA;
+}
+.table-row-cell:hover {
+    -fx-background-color: #F1F5F9;
+}
+.table-row-cell:selected {
+    -fx-background-color: #FFF7ED;
+    -fx-text-fill: #C2410C;
+}
+
+/* Text Fields and Inputs */
+.text-field, .password-field, .text-area, .combo-box {
+    -fx-background-color: #FFFFFF;
+    -fx-border-color: #CBD5E1;
+    -fx-border-radius: 6px;
+    -fx-background-radius: 6px;
+    -fx-padding: 8px 12px;
+}
+
+.text-field:focused, .password-field:focused, .text-area:focused, .combo-box:focused {
+    -fx-border-color: #FF6B00;
+    -fx-effect: dropshadow(three-pass-box, rgba(255,107,0,0.2), 4, 0, 0, 0);
+}
+
+/* Smart Delivery Advisory Box */
+.smart-advisory-box {
+    -fx-background-color: #EFF6FF;
+    -fx-border-color: #BFDBFE;
+    -fx-border-width: 1px;
+    -fx-border-radius: 8px;
+    -fx-background-radius: 8px;
+    -fx-padding: 12px;
+}
+
+/* Concurrency Monitor Terminal Box */
+.terminal-box {
+    -fx-background-color: #0F172A;
+    -fx-border-color: #1E293B;
+    -fx-border-radius: 8px;
+    -fx-background-radius: 8px;
+    -fx-padding: 12px;
+    -fx-font-family: 'Consolas', 'Courier New', monospace;
+    -fx-font-size: 11px;
+    -fx-text-fill: #38BDF8;
+}
