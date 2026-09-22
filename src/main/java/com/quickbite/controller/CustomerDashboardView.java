@@ -17,7 +17,13 @@ import javafx.scene.layout.*;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.shape.Rectangle;
+
+import java.io.File;
 import java.util.*;
+
 
 /**
  * Modern JavaFX Customer Dashboard View.
@@ -211,9 +217,50 @@ public class CustomerDashboardView {
     }
 
     private VBox createFoodCard(FoodItem item) {
-        VBox card = new VBox(8);
+        VBox card = new VBox(0);
         card.setPrefWidth(260);
-        card.setStyle("-fx-background-color: #FFFFFF; -fx-background-radius: 10px; -fx-padding: 14px; -fx-border-color: #E2E8F0; -fx-border-radius: 10px; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.05), 6, 0, 0, 2);");
+        card.setStyle("-fx-background-color: #FFFFFF; -fx-background-radius: 10px; -fx-border-color: #E2E8F0; -fx-border-radius: 10px; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.05), 6, 0, 0, 2);");
+
+        // --- Food image at the top of the card ---
+        ImageView imgView = new ImageView();
+        imgView.setFitWidth(260);
+        imgView.setFitHeight(148);
+        imgView.setPreserveRatio(false);
+
+        // Rounded clip to match card corners
+        Rectangle clip = new Rectangle(260, 148);
+        clip.setArcWidth(10);
+        clip.setArcHeight(10);
+        imgView.setClip(clip);
+
+        boolean imageLoaded = false;
+        String imgPath = item.getImageUrl();
+        if (imgPath != null && !imgPath.isBlank() && !imgPath.equals("food.png")) {
+            try {
+                File f = new File(imgPath);
+                String uri = f.exists() ? f.toURI().toString() : imgPath;
+                Image img = new Image(uri, 260, 148, false, true, true);
+                imgView.setImage(img);
+                imageLoaded = true;
+            } catch (Exception ignored) {}
+        }
+
+        if (!imageLoaded) {
+            // Placeholder: a styled StackPane instead of an image
+            StackPane placeholder = new StackPane();
+            placeholder.setPrefSize(260, 148);
+            placeholder.setStyle("-fx-background-color: #F1F5F9; -fx-background-radius: 10px 10px 0 0;");
+            Label icon = new Label("🍽");
+            icon.setStyle("-fx-font-size: 36px;");
+            placeholder.getChildren().add(icon);
+            card.getChildren().add(placeholder);
+        } else {
+            card.getChildren().add(imgView);
+        }
+
+        // --- Content area below image ---
+        VBox content = new VBox(8);
+        content.setPadding(new Insets(12, 14, 14, 14));
 
         HBox topRow = new HBox(8);
         topRow.setAlignment(Pos.CENTER_LEFT);
@@ -256,9 +303,11 @@ public class CustomerDashboardView {
 
         priceAndAddRow.getChildren().addAll(priceLbl, pSpacer, btnAdd);
 
-        card.getChildren().addAll(topRow, nameLbl, descLbl, priceAndAddRow);
+        content.getChildren().addAll(topRow, nameLbl, descLbl, priceAndAddRow);
+        card.getChildren().add(content);
         return card;
     }
+
 
     private VBox createCartSidebar(Stage stage) {
         VBox sidebar = new VBox(12);
