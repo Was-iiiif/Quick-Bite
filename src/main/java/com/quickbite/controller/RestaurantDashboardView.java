@@ -18,7 +18,15 @@ import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Map;
 
@@ -369,6 +377,34 @@ public class RestaurantDashboardView {
         CheckBox chkAvail = new CheckBox("Available in stock");
         chkAvail.setSelected(existing == null || existing.isAvailable());
 
+        // --- Image section ---
+        final String[] selectedImagePath = { (existing != null ? existing.getImageUrl() : null) };
+
+        ImageView preview = new ImageView();
+        preview.setFitWidth(340);
+        preview.setFitHeight(160);
+        preview.setPreserveRatio(true);
+        preview.setStyle("-fx-background-color: #F1F5F9;");
+        loadPreviewImage(preview, selectedImagePath[0]);
+
+        Button btnChooseImg = new Button("🖼 Choose Image…");
+        btnChooseImg.setMaxWidth(Double.MAX_VALUE);
+        btnChooseImg.setStyle("-fx-background-color: #F1F5F9; -fx-text-fill: #475569; -fx-font-weight: bold; -fx-padding: 8px; -fx-border-color: #CBD5E1; -fx-border-radius: 6px; -fx-background-radius: 6px;");
+
+        btnChooseImg.setOnAction(e -> {
+            FileChooser fc = new FileChooser();
+            fc.setTitle("Select Food Image");
+            fc.getExtensionFilters().add(
+                    new FileChooser.ExtensionFilter("Image Files", "*.png", "*.jpg", "*.jpeg", "*.gif", "*.bmp", "*.webp"));
+            File chosen = fc.showOpenDialog(dialog);
+            if (chosen != null) {
+                // Copy image into project images/ folder so path stays stable
+                String saved = copyImageToImagesDir(chosen);
+                selectedImagePath[0] = saved != null ? saved : chosen.getAbsolutePath();
+                loadPreviewImage(preview, selectedImagePath[0]);
+            }
+        });
+
         Button btnSave = new Button("Save Dish");
         btnSave.setMaxWidth(Double.MAX_VALUE);
         btnSave.setStyle("-fx-background-color: #FF6B00; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10px;");
@@ -376,9 +412,10 @@ public class RestaurantDashboardView {
         btnSave.setOnAction(e -> {
             try {
                 double price = Double.parseDouble(txtPrice.getText().trim());
+                String imgPath = selectedImagePath[0] != null ? selectedImagePath[0] : "food.png";
                 if (existing == null) {
                     FoodItem newItem = new FoodItem(0, currentRestaurant.getId(), txtName.getText().trim(),
-                            txtDesc.getText().trim(), txtCategory.getText().trim(), price, chkAvail.isSelected(), "food.png");
+                            txtDesc.getText().trim(), txtCategory.getText().trim(), price, chkAvail.isSelected(), imgPath);
                     menuService.addFoodItem(newItem);
                 } else {
                     existing.setName(txtName.getText().trim());
@@ -386,6 +423,7 @@ public class RestaurantDashboardView {
                     existing.setPrice(price);
                     existing.setDescription(txtDesc.getText().trim());
                     existing.setAvailable(chkAvail.isSelected());
+                    existing.setImageUrl(imgPath);
                     menuService.updateFoodItem(existing);
                 }
                 dialog.close();
@@ -403,16 +441,57 @@ public class RestaurantDashboardView {
                 new Label("Price ($):"), txtPrice,
                 new Label("Description:"), txtDesc,
                 chkAvail,
+                new Label("Food Image:"),
+                preview,
+                btnChooseImg,
                 btnSave
         );
 
-        Scene scene = new Scene(form, 400, 420);
+        ScrollPane scroll = new ScrollPane(form);
+        scroll.setFitToWidth(true);
+        scroll.setStyle("-fx-background-color: white; -fx-background: white;");
+
+        Scene scene = new Scene(scroll, 400, 600);
         try {
             scene.getStylesheets().add(getClass().getResource("/css/style.css").toExternalForm());
         } catch (Exception ignored) {}
         dialog.setScene(scene);
         dialog.show();
     }
+
+    /** Loads an image into the preview ImageView, showing a grey placeholder if path is null/missing. */
+    private void loadPreviewImage(ImageView view, String path) {
+        if (path == null || path.isBlank() || path.equals("food.png")) {
+            view.setImage(null);
+            view.setStyle("-fx-background-color: #E2E8F0;");
+            return;
+        }
+        try {
+            File f = new File(path);
+            String uri = f.exists() ? f.toURI().toString() : path;
+            Image img = new Image(uri, true);
+            view.setImage(img);
+            view.setStyle("");
+        } catch (Exception ex) {
+            view.setImage(null);
+            view.setStyle("-fx-background-color: #E2E8F0;");
+        }
+    }
+
+    /** Copies the chosen file to the project-local images/ folder and returns the new absolute path. */
+    private String copyImageToImagesDir(File source) {
+        try {
+            Path imagesDir = Paths.get(System.getProperty("user.dir"), "images");
+            Files.createDirectories(imagesDir);
+            Path dest = imagesDir.resolve(source.getName());
+            Files.copy(source.toPath(), dest, StandardCopyOption.REPLACE_EXISTING);
+            return dest.toAbsolutePath().toString();
+        } catch (IOException ex) {
+            return null;
+        }
+    }
+
+
 
     private void exportMenu(Stage stage) {
         FileChooser chooser = new FileChooser();
