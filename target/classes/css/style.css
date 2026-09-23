@@ -261,3 +261,30 @@
     -fx-font-size: 11px;
     -fx-text-fill: #38BDF8;
 }
+
+/* Modern Dark Scrollbars */
+.scroll-pane {
+    -fx-background-color: transparent;
+    -fx-background: transparent;
+}
+.scroll-pane > .corner {
+    -fx-background-color: transparent;
+}
+.scroll-bar:vertical, .scroll-bar:horizontal {
+    -fx-background-color: transparent;
+}
+.scroll-bar:vertical .thumb, .scroll-bar:horizontal .thumb {
+    -fx-background-color: #272730;
+    -fx-background-radius: 6px;
+}
+.scroll-bar:vertical .thumb:hover, .scroll-bar:horizontal .thumb:hover {
+    -fx-background-color: #3F3F4E;
+}
+.scroll-bar:vertical .track, .scroll-bar:horizontal .track {
+    -fx-background-color: transparent;
+}
+.scroll-bar .increment-button, .scroll-bar .decrement-button {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+}
+

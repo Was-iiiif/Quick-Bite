@@ -61,6 +61,59 @@ public class RestaurantDAO {
         return list;
     }
 
+    public boolean create(Restaurant r) {
+        String sql = "INSERT INTO restaurants (name, description, address, phone, rating, image_url) VALUES (?, ?, ?, ?, ?, ?);";
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            pstmt.setString(1, r.getName());
+            pstmt.setString(2, r.getDescription());
+            pstmt.setString(3, r.getAddress());
+            pstmt.setString(4, r.getPhone());
+            pstmt.setDouble(5, r.getRating() > 0 ? r.getRating() : 4.5);
+            pstmt.setString(6, r.getImageUrl() != null ? r.getImageUrl() : "pizza.png");
+            int affected = pstmt.executeUpdate();
+            if (affected > 0) {
+                try (ResultSet rs = pstmt.getGeneratedKeys()) {
+                    if (rs.next()) r.setId(rs.getInt(1));
+                }
+                return true;
+            }
+        } catch (SQLException e) {
+            System.err.println("RestaurantDAO create error: " + e.getMessage());
+        }
+        return false;
+    }
+
+    public boolean delete(int id) {
+        String sql = "DELETE FROM restaurants WHERE id = ?;";
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, id);
+            return pstmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.err.println("RestaurantDAO delete error: " + e.getMessage());
+        }
+        return false;
+    }
+
+    public boolean update(Restaurant r) {
+        String sql = "UPDATE restaurants SET name = ?, description = ?, address = ?, phone = ?, rating = ?, image_url = ? WHERE id = ?;";
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, r.getName());
+            pstmt.setString(2, r.getDescription());
+            pstmt.setString(3, r.getAddress());
+            pstmt.setString(4, r.getPhone());
+            pstmt.setDouble(5, r.getRating());
+            pstmt.setString(6, r.getImageUrl());
+            pstmt.setInt(7, r.getId());
+            return pstmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.err.println("RestaurantDAO update error: " + e.getMessage());
+        }
+        return false;
+    }
+
     public boolean updateRating(int id, double newRating) {
         String sql = "UPDATE restaurants SET rating = ? WHERE id = ?;";
         try (Connection conn = DatabaseConfig.getConnection();
@@ -73,6 +126,7 @@ public class RestaurantDAO {
         }
         return false;
     }
+
 
     private Restaurant mapRow(ResultSet rs) throws SQLException {
         return new Restaurant(

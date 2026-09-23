@@ -173,4 +173,9 @@ public class DatabaseConfig {
             e.printStackTrace();
         }
     }
+
+    public static void main(String[] args) {
+        initializeDatabase();
+    }
 }
+

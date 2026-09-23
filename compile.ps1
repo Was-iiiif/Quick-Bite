@@ -7,6 +7,9 @@ $jacksonCore = (Get-ChildItem -Path "C:\Users\User\.m2\repository" -Filter "jack
 $jacksonAnnotations = (Get-ChildItem -Path "C:\Users\User\.m2\repository" -Filter "jackson-annotations-*.jar" -Recurse | Where-Object { $_.Name -notlike "*sources*" } | Select-Object -First 1).FullName
 $cp = "target\classes;$jfxBase;$jfxControls;$jfxGraphics;$sqlite;$jackson;$jacksonCore;$jacksonAnnotations"
 $sources = (Get-ChildItem -Path "src\main\java" -Filter "*.java" -Recurse).FullName
+if (Test-Path "src\main\resources") {
+    Copy-Item -Path "src\main\resources\*" -Destination "target\classes\" -Recurse -Force
+}
 Write-Host "Compiling..."
 javac -cp $cp -d "target\classes" $sources 2>&1
 Write-Host "Exit code: $LASTEXITCODE"
