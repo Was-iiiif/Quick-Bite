@@ -167,6 +167,6 @@ public class Order {
 
     @Override
     public String toString() {
-        return String.format("Order #%d [%s] - $%.2f (%s)", id, status, totalAmount, restaurantName != null ? restaurantName : "Restaurant #" + restaurantId);
+        return String.format("Order #%d [%s] - BDT %.2f (%s)", id, status, totalAmount, restaurantName != null ? restaurantName : "Restaurant #" + restaurantId);
     }
 }

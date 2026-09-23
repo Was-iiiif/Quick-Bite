@@ -523,7 +523,7 @@ public class CustomerDashboardView {
         Region sp = new Region();
         HBox.setHgrow(sp, Priority.ALWAYS);
 
-        Button btnManage = new Button("⚙ Manage Places");
+        Button btnManage = new Button("🏪 Registered Directory");
         btnManage.setStyle(
                 "-fx-background-color: #1E1E26;" +
                 "-fx-text-fill: #FF5722;" +
@@ -623,6 +623,21 @@ public class CustomerDashboardView {
             displayedCount++;
         }
 
+        if (displayedCount == 0) {
+            VBox emptyBox = new VBox(10);
+            emptyBox.setAlignment(Pos.CENTER);
+            emptyBox.setPadding(new Insets(30, 20, 30, 20));
+            emptyBox.setPrefWidth(550);
+            Label emptyIcon = new Label("🏪");
+            emptyIcon.setStyle("-fx-font-size: 38px;");
+            Label emptyTitle = new Label("No registered partner restaurants found.");
+            emptyTitle.setStyle("-fx-text-fill: #E4E4E7; -fx-font-size: 14px; -fx-font-weight: bold;");
+            Label emptySub = new Label("Only restaurants registered in the Restaurant Admin Dashboard are listed here.");
+            emptySub.setStyle("-fx-text-fill: #71717A; -fx-font-size: 12px;");
+            emptyBox.getChildren().addAll(emptyIcon, emptyTitle, emptySub);
+            restaurantGrid.getChildren().add(emptyBox);
+        }
+
         if (lblNearYouCount != null) {
             lblNearYouCount.setText(displayedCount + (displayedCount == 1 ? " place" : " places"));
         }
@@ -698,39 +713,37 @@ public class CustomerDashboardView {
         badgeBar.setPadding(new Insets(10));
         badgeBar.setAlignment(Pos.TOP_LEFT);
 
-        if (m != null) {
-            String leftTag = m[0];
-            String rightTag = m[1];
+        String leftTag = m != null ? m[0] : "PARTNER";
+        String rightTag = m != null ? m[1] : "";
 
-            if (!leftTag.isEmpty()) {
-                Label tagLbl = new Label(leftTag);
-                tagLbl.setStyle(
-                        "-fx-background-color: rgba(255, 87, 34, 0.9);" +
-                        "-fx-text-fill: white;" +
-                        "-fx-font-size: 9px;" +
-                        "-fx-font-weight: bold;" +
-                        "-fx-padding: 3px 7px;" +
-                        "-fx-background-radius: 6px;"
-                );
-                badgeBar.getChildren().add(tagLbl);
-            }
+        if (!leftTag.isEmpty()) {
+            Label tagLbl = new Label(leftTag);
+            tagLbl.setStyle(
+                    "-fx-background-color: rgba(255, 87, 34, 0.9);" +
+                    "-fx-text-fill: white;" +
+                    "-fx-font-size: 9px;" +
+                    "-fx-font-weight: bold;" +
+                    "-fx-padding: 3px 7px;" +
+                    "-fx-background-radius: 6px;"
+            );
+            badgeBar.getChildren().add(tagLbl);
+        }
 
-            Region sp = new Region();
-            HBox.setHgrow(sp, Priority.ALWAYS);
-            badgeBar.getChildren().add(sp);
+        Region sp = new Region();
+        HBox.setHgrow(sp, Priority.ALWAYS);
+        badgeBar.getChildren().add(sp);
 
-            if (!rightTag.isEmpty()) {
-                Label rightTagLbl = new Label(rightTag);
-                rightTagLbl.setStyle(
-                        "-fx-background-color: rgba(220, 38, 38, 0.9);" +
-                        "-fx-text-fill: white;" +
-                        "-fx-font-size: 9px;" +
-                        "-fx-font-weight: bold;" +
-                        "-fx-padding: 3px 7px;" +
-                        "-fx-background-radius: 6px;"
-                );
-                badgeBar.getChildren().add(rightTagLbl);
-            }
+        if (!rightTag.isEmpty()) {
+            Label rightTagLbl = new Label(rightTag);
+            rightTagLbl.setStyle(
+                    "-fx-background-color: rgba(220, 38, 38, 0.9);" +
+                    "-fx-text-fill: white;" +
+                    "-fx-font-size: 9px;" +
+                    "-fx-font-weight: bold;" +
+                    "-fx-padding: 3px 7px;" +
+                    "-fx-background-radius: 6px;"
+            );
+            badgeBar.getChildren().add(rightTagLbl);
         }
         banner.getChildren().add(badgeBar);
 
@@ -1251,14 +1264,54 @@ public class CustomerDashboardView {
 
         boolean loaded = false;
         String path = item.getImageUrl();
-        if (path != null && !path.isBlank() && !path.equals("food.png")) {
+        if (path != null && !path.isBlank()) {
+            // 1) Classpath resource (/images/<path>)
             try {
-                File f = new File(path);
-                String uri = f.exists() ? f.toURI().toString() : path;
-                Image img = new Image(uri, 225, 115, false, true, true);
-                imgView.setImage(img);
-                loaded = true;
+                var stream = getClass().getResourceAsStream("/images/" + path);
+                if (stream != null) {
+                    Image img = new Image(stream, 225, 115, false, true);
+                    imgView.setImage(img);
+                    stream.close();
+                    loaded = true;
+                }
             } catch (Exception ignored) {}
+
+            // 2) Project images folder (images/<path>)
+            if (!loaded) {
+                try {
+                    File f = new File("images/" + path);
+                    if (f.exists()) {
+                        Image img = new Image(f.toURI().toString(), 225, 115, false, true, true);
+                        imgView.setImage(img);
+                        loaded = true;
+                    }
+                } catch (Exception ignored) {}
+            }
+
+            // 3) Direct file path or URI
+            if (!loaded) {
+                try {
+                    File f = new File(path);
+                    if (f.exists()) {
+                        Image img = new Image(f.toURI().toString(), 225, 115, false, true, true);
+                        imgView.setImage(img);
+                        loaded = true;
+                    }
+                } catch (Exception ignored) {}
+            }
+
+            // 4) Fallback to kfc.png if dish has generic image
+            if (!loaded) {
+                try {
+                    var stream = getClass().getResourceAsStream("/images/kfc.png");
+                    if (stream != null) {
+                        Image img = new Image(stream, 225, 115, false, true);
+                        imgView.setImage(img);
+                        stream.close();
+                        loaded = true;
+                    }
+                } catch (Exception ignored) {}
+            }
         }
 
         if (!loaded) {
@@ -1735,7 +1788,7 @@ public class CustomerDashboardView {
         Stage modal = new Stage();
         modal.initModality(Modality.APPLICATION_MODAL);
         modal.initOwner(ownerStage);
-        modal.setTitle("Manage Partner Restaurants — QuickBite");
+        modal.setTitle("Registered Partner Restaurants — QuickBite");
 
         VBox root = new VBox(16);
         root.setPadding(new Insets(24));
@@ -1745,13 +1798,13 @@ public class CustomerDashboardView {
         HBox head = new HBox(12);
         head.setAlignment(Pos.CENTER_LEFT);
 
-        Label title = new Label("Partner Restaurants Directory");
+        Label title = new Label("Registered Partner Restaurants Directory");
         title.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: white;");
 
         Region sp = new Region();
         HBox.setHgrow(sp, Priority.ALWAYS);
 
-        Button btnAdd = new Button("➕ Add New Restaurant");
+        Button btnAdd = new Button("➕ Register Restaurant");
         btnAdd.setStyle("-fx-background-color: #FF5722; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 12px; -fx-padding: 8px 14px; -fx-background-radius: 8px; -fx-cursor: hand;");
         btnAdd.setOnAction(e -> showAddRestaurantDialog(ownerStage, modal));
 
@@ -1761,7 +1814,7 @@ public class CustomerDashboardView {
 
         head.getChildren().addAll(title, sp, btnAdd, btnClose);
 
-        Label sub = new Label("Add new partner places or remove restaurants from the customer marketplace.");
+        Label sub = new Label("Marketplace Coordination: Only restaurants registered in the Restaurant Admin Dashboard are displayed to customers.");
         sub.setStyle("-fx-font-size: 11px; -fx-text-fill: #9CA3AF;");
 
         // List of restaurants
@@ -1890,7 +1943,12 @@ public class CustomerDashboardView {
 
             Restaurant r = new Restaurant(0, name, desc, addr, phone, rating, "kfc.png");
             if (restaurantDAO.create(r)) {
-                AlertUtil.showInfo("Success!", "'" + name + "' is now live on the QuickBite marketplace!");
+                // Seed 3 starter dishes so menu is immediately populated
+                menuService.addFoodItem(new FoodItem(0, r.getId(), "Signature Combo Meal", "Special combo meal with side dish", "Main", 380.00, true, "kfc.png"));
+                menuService.addFoodItem(new FoodItem(0, r.getId(), "Crispy Appetizer", "Golden fried hot snack", "Appetizer", 160.00, true, "kfc.png"));
+                menuService.addFoodItem(new FoodItem(0, r.getId(), "Chilled Soft Drink", "Refreshing beverage 500ml", "Beverage", 50.00, true, "kfc.png"));
+
+                AlertUtil.showInfo("Success!", "'" + name + "' is now registered and live on the QuickBite customer marketplace!");
                 dialog.close();
                 if (parentModal != null) parentModal.close();
                 refreshRestaurants();

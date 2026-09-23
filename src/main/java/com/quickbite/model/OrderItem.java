@@ -77,6 +77,6 @@ public class OrderItem {
 
     @Override
     public String toString() {
-        return String.format("%s x%d @ $%.2f = $%.2f", foodName, quantity, unitPrice, getSubtotal());
+        return String.format("%s x%d @ BDT %.2f = BDT %.2f", foodName, quantity, unitPrice, getSubtotal());
     }
 }
