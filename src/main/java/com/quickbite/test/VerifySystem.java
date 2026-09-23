@@ -48,7 +48,7 @@ public class VerifySystem {
         OrderService orderService = new OrderService();
         List<CartItem> cart = List.of(new CartItem(items.get(0), 2));
         Order order = orderService.placeOrder(customer.getId(), restaurants.get(0).getId(), cart, "123 Test St", "Cash on Delivery", 3.99, false);
-        System.out.println("Placed Test Order #" + order.getId() + " - Total: $" + order.getTotalAmount());
+        System.out.println("Placed Test Order #" + order.getId() + " - Total: BDT " + order.getTotalAmount());
         assert order.getId() > 0 : "Order ID should be generated";
 
         // 4. Test Restaurant Stats
