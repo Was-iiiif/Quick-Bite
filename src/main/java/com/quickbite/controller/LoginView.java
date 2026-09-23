@@ -110,7 +110,7 @@ public class LoginView {
         HBox statsRow = new HBox(22);
         statsRow.setPadding(new Insets(22, 0, 0, 0));
         statsRow.getChildren().addAll(
-            statBlock("2.4k",   "Restaurants"),
+            statBlock("03",   "Restaurants"),
             statBlock("98%",    "On-time rate"),
             statBlock("18 min", "Avg. delivery")
         );
@@ -128,8 +128,7 @@ public class LoginView {
         );
 
         Label quote = new Label(
-            "\"Ember doubled our online revenue in 3 months.\n" +
-            "The dashboard is a game-changer.\""
+            "\"Delicious food, fast delivery, and a seamless ordering experience. I never have to worry about dinner anymore!”\n"
         );
         quote.setStyle("-fx-font-size: 11px; -fx-text-fill: #CCCCCC; -fx-line-spacing: 3; -fx-font-style: italic;");
         quote.setWrapText(true);
@@ -150,9 +149,9 @@ public class LoginView {
         );
 
         VBox authorInfo = new VBox(2);
-        Label authorName = new Label("Sofia M.");
+        Label authorName = new Label("Sadia Jahan Turabe");
         authorName.setStyle("-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: white;");
-        Label authorTitle = new Label("Owner, Petite Maison");
+        Label authorTitle = new Label("Verified Customer");
         authorTitle.setStyle("-fx-font-size: 10px; -fx-text-fill: #777777;");
         authorInfo.getChildren().addAll(authorName, authorTitle);
 
@@ -199,7 +198,7 @@ public class LoginView {
         String[]   roles     = { "Customer",                    "Restaurant",              "Rider"                   };
         String[]   roleKeys  = { "CUSTOMER",                    "RESTAURANT_ADMIN",        "DELIVERY_STAFF"          };
         String[]   icons     = { "🛒",                          "🏠",                      "🕐"                      };
-        String[]   descs     = { "Order food & track delivery", "Manage orders & menu",    "Pick up & deliver orders" };
+        String[]   descs     = { "Order & Track your food", " Manage orders & menu",    " Pick up & deliver orders" };
 
         VBox[]  roleCards = new VBox[3];
 
@@ -344,8 +343,8 @@ public class LoginView {
         Button btnApple  = socialBtn("🍎  Apple");
         btnGoogle.setPrefWidth(188);
         btnApple.setPrefWidth(188);
-        btnGoogle.setOnAction(e -> AlertUtil.showInfo("Google Login", "Social login is not available in the desktop app."));
-        btnApple.setOnAction(e  -> AlertUtil.showInfo("Apple Login",  "Social login is not available in the desktop app."));
+        btnGoogle.setOnAction(e -> AlertUtil.showInfo("Google Login", "Future updates will ensure social login :("));
+        btnApple.setOnAction(e  -> AlertUtil.showInfo("Apple Login",  "Future updates will ensure social login :("));
         socialRow.getChildren().addAll(btnGoogle, btnApple);
 
         // ── Assemble container ────────────────────────────────────────────────
@@ -377,7 +376,7 @@ public class LoginView {
         Stage dialog = new Stage();
         dialog.initOwner(ownerStage);
         dialog.initModality(Modality.WINDOW_MODAL);
-        dialog.setTitle("Create Account — QuickBite");
+        dialog.setTitle("Create Account");
 
         VBox form = new VBox(10);
         form.setPadding(new Insets(28));
@@ -392,7 +391,7 @@ public class LoginView {
 
         TextField regName     = new TextField(); regName.setPromptText("Full Name");              styleInput(regName);
         TextField regEmail    = new TextField(); regEmail.setPromptText("Email Address");          styleInput(regEmail);
-        PasswordField regPass = new PasswordField(); regPass.setPromptText("Password (min 4 chars)"); styleInput(regPass);
+        PasswordField regPass = new PasswordField(); regPass.setPromptText("Password (min 8 chars)"); styleInput(regPass);
         TextField regPhone    = new TextField(); regPhone.setPromptText("Phone Number");           styleInput(regPhone);
         TextField regAddress  = new TextField(); regAddress.setPromptText("Delivery Address");     styleInput(regAddress);
 
@@ -442,14 +441,14 @@ public class LoginView {
 
         // Labels for each field
         form.getChildren().addAll(
-            title, subLbl, new Region() {{ setPrefHeight(4); }},
+            title, subLbl, new Region() {{ setPrefHeight(8); }},
             fieldLabel("Full Name"),    regName,
             fieldLabel("Email"),        regEmail,
             fieldLabel("Password"),     regPass,
             fieldLabel("Phone"),        regPhone,
             fieldLabel("Address"),      regAddress,
             fieldLabel("Role"),         roleCombo,
-            new Region() {{ setPrefHeight(4); }},
+            new Region() {{ setPrefHeight(8); }},
             btnRegister
         );
 
