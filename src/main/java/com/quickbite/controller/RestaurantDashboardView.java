@@ -44,6 +44,7 @@ public class RestaurantDashboardView {
     private final DeliveryDriverPool driverPool = DeliveryDriverPool.getInstance();
 
     private Restaurant currentRestaurant;
+    private Stage mainStage;
 
     // UI elements
     private Label lblTotalOrders;
@@ -52,26 +53,35 @@ public class RestaurantDashboardView {
     private Label lblRating;
     private TableView<Order> ordersTable;
     private TableView<FoodItem> menuTable;
+    private TableView<Restaurant> registeredTable;
+    private ComboBox<Restaurant> cmbRestaurants;
+    private Label userLabel;
 
     public RestaurantDashboardView(RestaurantAdmin admin) {
         this.admin = admin;
     }
 
     public void show(Stage stage) {
+        this.mainStage = stage;
+        List<Restaurant> allRests = restaurantDAO.getAll();
         currentRestaurant = restaurantDAO.getById(admin.getRestaurantId());
+        if (currentRestaurant == null && !allRests.isEmpty()) {
+            currentRestaurant = allRests.get(0);
+            admin.setRestaurantId(currentRestaurant.getId());
+        }
         if (currentRestaurant == null) {
-            currentRestaurant = new Restaurant(1, "Bella Italia Trattoria", "Trattoria", "101 Little Italy Way", "+1 555-1001", 4.8, "pizza.png");
+            currentRestaurant = new Restaurant(1, "KFC Bangladesh", "Crispy Fried Chicken & Burgers", "Gulshan-1, Dhaka", "+880 1711-000000", 5.0, "kfc.png");
         }
 
         stage.setTitle("QuickBite - Restaurant Admin (" + currentRestaurant.getName() + ")");
 
         BorderPane root = new BorderPane();
-        root.setStyle("-fx-background-color: #F8FAFC;");
+        root.setStyle("-fx-background-color: #0E0E10;");
 
         // Top Navigation Bar
         root.setTop(createNavBar(stage));
 
-        // Center: Stats cards + Tabs for Orders & Menu
+        // Center: Stats cards + Tabs for Orders, Menu & Registered Outlets
         VBox centerContent = new VBox(16);
         centerContent.setPadding(new Insets(16));
 
@@ -79,7 +89,7 @@ public class RestaurantDashboardView {
         HBox statsBar = createStatsBar();
         centerContent.getChildren().add(statsBar);
 
-        // TabPane for Orders vs Menu Management
+        // TabPane for Orders vs Menu vs Registered Restaurants
         TabPane tabPane = new TabPane();
         tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
         VBox.setVgrow(tabPane, Priority.ALWAYS);
@@ -92,14 +102,18 @@ public class RestaurantDashboardView {
         Tab menuTab = new Tab("🍕 Menu Management (CRUD & JSON)");
         menuTab.setContent(createMenuTabContent(stage));
 
-        tabPane.getTabs().addAll(ordersTab, menuTab);
+        // Tab 3: Registered Restaurants (Sync with Customer Dashboard)
+        Tab registeredTab = new Tab("🏪 Registered Outlets (Customer Marketplace)");
+        registeredTab.setContent(createRegisteredRestaurantsTabContent(stage));
+
+        tabPane.getTabs().addAll(ordersTab, menuTab, registeredTab);
         centerContent.getChildren().add(tabPane);
 
         root.setCenter(centerContent);
 
         refreshData();
 
-        Scene scene = new Scene(root, 1050, 720);
+        Scene scene = new Scene(root, 1100, 750);
         try {
             scene.getStylesheets().add(getClass().getResource("/css/style.css").toExternalForm());
         } catch (Exception ignored) {}
@@ -108,29 +122,50 @@ public class RestaurantDashboardView {
     }
 
     private HBox createNavBar(Stage stage) {
-        HBox nav = new HBox(16);
-        nav.setStyle("-fx-background-color: #1E293B; -fx-padding: 12px 20px; -fx-alignment: CENTER_LEFT;");
+        HBox nav = new HBox(12);
+        nav.setStyle("-fx-background-color: #121216; -fx-padding: 12px 20px; -fx-alignment: CENTER_LEFT; -fx-border-color: #24242C; -fx-border-width: 0 0 1px 0;");
 
         Label brand = new Label("QuickBite Restaurant Portal");
-        brand.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #FF6B00;");
+        brand.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #FF5722;");
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        Label userLabel = new Label(currentRestaurant.getName() + " | Admin: " + admin.getName());
-        userLabel.setStyle("-fx-text-fill: #F1F5F9; -fx-font-weight: bold;");
+        Label switchLbl = new Label("Active Outlet:");
+        switchLbl.setStyle("-fx-text-fill: #9CA3AF; -fx-font-size: 11px; -fx-font-weight: bold;");
+
+        cmbRestaurants = new ComboBox<>();
+        cmbRestaurants.setStyle("-fx-background-color: #1C1C22; -fx-text-fill: white; -fx-font-size: 11px; -fx-border-color: #2E2E38; -fx-border-radius: 6px;");
+        refreshRestaurantCombo();
+        cmbRestaurants.setOnAction(e -> {
+            Restaurant sel = cmbRestaurants.getValue();
+            if (sel != null && (currentRestaurant == null || sel.getId() != currentRestaurant.getId())) {
+                currentRestaurant = sel;
+                admin.setRestaurantId(sel.getId());
+                stage.setTitle("QuickBite - Restaurant Admin (" + currentRestaurant.getName() + ")");
+                if (userLabel != null) userLabel.setText(currentRestaurant.getName() + " | Admin: " + admin.getName());
+                refreshData();
+            }
+        });
+
+        Button btnRegisterNav = new Button("➕ Register Restaurant");
+        btnRegisterNav.setStyle("-fx-background-color: #10B981; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 11px; -fx-padding: 6px 12px; -fx-background-radius: 6px; -fx-cursor: hand;");
+        btnRegisterNav.setOnAction(e -> openRegisterRestaurantDialog(stage, null));
+
+        userLabel = new Label(currentRestaurant.getName() + " | Admin: " + admin.getName());
+        userLabel.setStyle("-fx-text-fill: #FFFFFF; -fx-font-weight: bold; -fx-font-size: 12px;");
 
         Label roleBadge = new Label("Restaurant Admin");
-        roleBadge.setStyle("-fx-background-color: #D97706; -fx-text-fill: white; -fx-padding: 3px 8px; -fx-background-radius: 12px; -fx-font-size: 11px;");
+        roleBadge.setStyle("-fx-background-color: #38241D; -fx-text-fill: #FF5722; -fx-border-color: #FF5722; -fx-border-radius: 12px; -fx-padding: 3px 8px; -fx-font-size: 11px; -fx-font-weight: bold; -fx-background-radius: 12px;");
 
         Button btnLogout = new Button("Logout");
-        btnLogout.setStyle("-fx-background-color: #EF4444; -fx-text-fill: white; -fx-font-size: 12px;");
+        btnLogout.setStyle("-fx-background-color: #EF4444; -fx-text-fill: white; -fx-font-size: 12px; -fx-cursor: hand; -fx-font-weight: bold; -fx-background-radius: 6px; -fx-padding: 6px 14px;");
         btnLogout.setOnAction(e -> {
             new AuthService().logout();
             new LoginView().show(stage);
         });
 
-        nav.getChildren().addAll(brand, spacer, userLabel, roleBadge, btnLogout);
+        nav.getChildren().addAll(brand, spacer, switchLbl, cmbRestaurants, btnRegisterNav, userLabel, roleBadge, btnLogout);
         return nav;
     }
 
@@ -141,7 +176,7 @@ public class RestaurantDashboardView {
         VBox c1 = createStatCard("Total Orders", "0");
         lblTotalOrders = (Label) c1.getChildren().get(1);
 
-        VBox c2 = createStatCard("Total Revenue", "$0.00");
+        VBox c2 = createStatCard("Total Revenue", "BDT 0.00");
         lblTotalRevenue = (Label) c2.getChildren().get(1);
         lblTotalRevenue.setStyle("-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: #10B981;");
 
@@ -151,7 +186,7 @@ public class RestaurantDashboardView {
 
         VBox c4 = createStatCard("Store Rating", "5.0 ★");
         lblRating = (Label) c4.getChildren().get(1);
-        lblRating.setStyle("-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: #FF6B00;");
+        lblRating.setStyle("-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: #FF5722;");
 
         bar.getChildren().addAll(c1, c2, c3, c4);
         return bar;
@@ -160,14 +195,14 @@ public class RestaurantDashboardView {
     private VBox createStatCard(String title, String initialVal) {
         VBox card = new VBox(4);
         card.setPadding(new Insets(14));
-        card.setStyle("-fx-background-color: white; -fx-background-radius: 8px; -fx-border-color: #E2E8F0; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.04), 4, 0, 0, 1);");
+        card.setStyle("-fx-background-color: #17171C; -fx-background-radius: 10px; -fx-border-color: #24242C; -fx-border-radius: 10px; -fx-border-width: 1px; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.25), 4, 0, 0, 1);");
         HBox.setHgrow(card, Priority.ALWAYS);
 
         Label tLbl = new Label(title);
-        tLbl.setStyle("-fx-text-fill: #64748B; -fx-font-size: 11px; -fx-font-weight: bold;");
+        tLbl.setStyle("-fx-text-fill: #9CA3AF; -fx-font-size: 11px; -fx-font-weight: bold;");
 
         Label vLbl = new Label(initialVal);
-        vLbl.setStyle("-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: #0F172A;");
+        vLbl.setStyle("-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: #FFFFFF;");
 
         card.getChildren().addAll(tLbl, vLbl);
         return card;
@@ -183,6 +218,18 @@ public class RestaurantDashboardView {
         TableColumn<Order, String> colId = new TableColumn<>("Order ID");
         colId.setCellValueFactory(data -> new SimpleStringProperty("#" + data.getValue().getId()));
         colId.setMaxWidth(80);
+        colId.setCellFactory(col -> new TableCell<>() {
+            @Override
+            protected void updateItem(String val, boolean empty) {
+                super.updateItem(val, empty);
+                if (empty || val == null) {
+                    setText(null);
+                } else {
+                    setText(val);
+                    setStyle("-fx-text-fill: #FF5722; -fx-font-weight: bold;");
+                }
+            }
+        });
 
         TableColumn<Order, String> colCustomer = new TableColumn<>("Customer");
         colCustomer.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().getCustomerName()));
@@ -197,13 +244,52 @@ public class RestaurantDashboardView {
             return new SimpleStringProperty(sb.toString());
         });
 
-        TableColumn<Order, String> colTotal = new TableColumn<>("Total");
-        colTotal.setCellValueFactory(data -> new SimpleStringProperty(String.format("$%.2f", data.getValue().getTotalAmount())));
-        colTotal.setMaxWidth(100);
+        TableColumn<Order, String> colTotal = new TableColumn<>("Total (BDT)");
+        colTotal.setCellValueFactory(data -> new SimpleStringProperty(String.format("BDT %.2f", data.getValue().getTotalAmount())));
+        colTotal.setMaxWidth(110);
+        colTotal.setCellFactory(col -> new TableCell<>() {
+            @Override
+            protected void updateItem(String val, boolean empty) {
+                super.updateItem(val, empty);
+                if (empty || val == null) {
+                    setText(null);
+                } else {
+                    setText(val);
+                    setStyle("-fx-text-fill: #10B981; -fx-font-weight: bold;");
+                }
+            }
+        });
 
         TableColumn<Order, String> colStatus = new TableColumn<>("Status");
         colStatus.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().getStatus()));
-        colStatus.setMaxWidth(130);
+        colStatus.setMaxWidth(140);
+        colStatus.setCellFactory(col -> new TableCell<>() {
+            private final Label badge = new Label();
+            {
+                badge.setAlignment(Pos.CENTER);
+            }
+            @Override
+            protected void updateItem(String status, boolean empty) {
+                super.updateItem(status, empty);
+                if (empty || status == null) {
+                    setGraphic(null);
+                    setText(null);
+                } else {
+                    badge.setText(status);
+                    switch (status.toUpperCase()) {
+                        case "CONFIRMED" -> badge.setStyle("-fx-background-color: #172554; -fx-text-fill: #60A5FA; -fx-border-color: #1E40AF; -fx-border-radius: 12px; -fx-background-radius: 12px; -fx-padding: 3px 8px; -fx-font-size: 11px; -fx-font-weight: bold;");
+                        case "PREPARING" -> badge.setStyle("-fx-background-color: #1E1B4B; -fx-text-fill: #A5B4FC; -fx-border-color: #3730A3; -fx-border-radius: 12px; -fx-background-radius: 12px; -fx-padding: 3px 8px; -fx-font-size: 11px; -fx-font-weight: bold;");
+                        case "READY" -> badge.setStyle("-fx-background-color: #3B0764; -fx-text-fill: #C084FC; -fx-border-color: #6B21A8; -fx-border-radius: 12px; -fx-background-radius: 12px; -fx-padding: 3px 8px; -fx-font-size: 11px; -fx-font-weight: bold;");
+                        case "OUT_FOR_DELIVERY" -> badge.setStyle("-fx-background-color: #431407; -fx-text-fill: #FB923C; -fx-border-color: #9A3412; -fx-border-radius: 12px; -fx-background-radius: 12px; -fx-padding: 3px 8px; -fx-font-size: 11px; -fx-font-weight: bold;");
+                        case "DELIVERED" -> badge.setStyle("-fx-background-color: #064E3B; -fx-text-fill: #34D399; -fx-border-color: #065F46; -fx-border-radius: 12px; -fx-background-radius: 12px; -fx-padding: 3px 8px; -fx-font-size: 11px; -fx-font-weight: bold;");
+                        case "CANCELLED" -> badge.setStyle("-fx-background-color: #450A0A; -fx-text-fill: #F87171; -fx-border-color: #991B1B; -fx-border-radius: 12px; -fx-background-radius: 12px; -fx-padding: 3px 8px; -fx-font-size: 11px; -fx-font-weight: bold;");
+                        default -> badge.setStyle("-fx-background-color: #38241D; -fx-text-fill: #F59E0B; -fx-border-color: #78350F; -fx-border-radius: 12px; -fx-background-radius: 12px; -fx-padding: 3px 8px; -fx-font-size: 11px; -fx-font-weight: bold;");
+                    }
+                    setGraphic(badge);
+                    setText(null);
+                }
+            }
+        });
 
         TableColumn<Order, String> colTime = new TableColumn<>("Placed At");
         colTime.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().getCreatedAt()));
@@ -217,15 +303,15 @@ public class RestaurantDashboardView {
         actionsRow.setAlignment(Pos.CENTER_LEFT);
 
         Button btnAccept = new Button("✔ Accept Order (Confirm)");
-        btnAccept.setStyle("-fx-background-color: #2563EB; -fx-text-fill: white; -fx-font-weight: bold;");
+        btnAccept.setStyle("-fx-background-color: #2563EB; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8px 14px; -fx-background-radius: 6px; -fx-cursor: hand;");
         btnAccept.setOnAction(e -> advanceSelectedOrderStatus(Order.STATUS_CONFIRMED));
 
         Button btnPreparing = new Button("🍳 Start Preparing");
-        btnPreparing.setStyle("-fx-background-color: #4F46E5; -fx-text-fill: white; -fx-font-weight: bold;");
+        btnPreparing.setStyle("-fx-background-color: #4F46E5; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8px 14px; -fx-background-radius: 6px; -fx-cursor: hand;");
         btnPreparing.setOnAction(e -> advanceSelectedOrderStatus(Order.STATUS_PREPARING));
 
         Button btnReady = new Button("📦 Ready for Delivery (Acquire Driver)");
-        btnReady.setStyle("-fx-background-color: #10B981; -fx-text-fill: white; -fx-font-weight: bold;");
+        btnReady.setStyle("-fx-background-color: #10B981; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8px 14px; -fx-background-radius: 6px; -fx-cursor: hand;");
         btnReady.setOnAction(e -> {
             Order sel = ordersTable.getSelectionModel().getSelectedItem();
             if (sel == null) {
@@ -244,11 +330,11 @@ public class RestaurantDashboardView {
         });
 
         Button btnReject = new Button("✕ Reject / Cancel");
-        btnReject.setStyle("-fx-background-color: #EF4444; -fx-text-fill: white;");
+        btnReject.setStyle("-fx-background-color: #EF4444; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8px 14px; -fx-background-radius: 6px; -fx-cursor: hand;");
         btnReject.setOnAction(e -> advanceSelectedOrderStatus(Order.STATUS_CANCELLED));
 
         Button btnRefresh = new Button("🔄 Refresh");
-        btnRefresh.setStyle("-fx-background-color: #F1F5F9; -fx-text-fill: #0F172A;");
+        btnRefresh.setStyle("-fx-background-color: #24242C; -fx-text-fill: #FFFFFF; -fx-border-color: #3F3F4E; -fx-border-radius: 6px; -fx-font-weight: bold; -fx-padding: 8px 14px; -fx-background-radius: 6px; -fx-cursor: hand;");
         btnRefresh.setOnAction(e -> refreshData());
 
         actionsRow.getChildren().addAll(btnAccept, btnPreparing, btnReady, btnReject, btnRefresh);
@@ -285,18 +371,83 @@ public class RestaurantDashboardView {
         colCat.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().getCategory()));
         colCat.setMaxWidth(120);
 
-        TableColumn<FoodItem, String> colPrice = new TableColumn<>("Price");
-        colPrice.setCellValueFactory(data -> new SimpleStringProperty(String.format("$%.2f", data.getValue().getPrice())));
-        colPrice.setMaxWidth(90);
+        TableColumn<FoodItem, String> colPrice = new TableColumn<>("Price (BDT)");
+        colPrice.setCellValueFactory(data -> new SimpleStringProperty(String.format("BDT %.2f", data.getValue().getPrice())));
+        colPrice.setMaxWidth(100);
+        colPrice.setCellFactory(col -> new TableCell<>() {
+            @Override
+            protected void updateItem(String val, boolean empty) {
+                super.updateItem(val, empty);
+                if (empty || val == null) {
+                    setText(null);
+                } else {
+                    setText(val);
+                    setStyle("-fx-text-fill: #10B981; -fx-font-weight: bold;");
+                }
+            }
+        });
 
         TableColumn<FoodItem, String> colAvail = new TableColumn<>("Availability");
         colAvail.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().isAvailable() ? "In Stock" : "Unavailable"));
         colAvail.setMaxWidth(110);
+        colAvail.setCellFactory(col -> new TableCell<>() {
+            private final Label badge = new Label();
+            {
+                badge.setAlignment(Pos.CENTER);
+            }
+            @Override
+            protected void updateItem(String val, boolean empty) {
+                super.updateItem(val, empty);
+                if (empty || val == null) {
+                    setGraphic(null);
+                    setText(null);
+                } else {
+                    badge.setText(val);
+                    if ("In Stock".equalsIgnoreCase(val)) {
+                        badge.setStyle("-fx-background-color: #064E3B; -fx-text-fill: #34D399; -fx-border-color: #065F46; -fx-border-radius: 12px; -fx-background-radius: 12px; -fx-padding: 2px 8px; -fx-font-size: 11px; -fx-font-weight: bold;");
+                    } else {
+                        badge.setStyle("-fx-background-color: #450A0A; -fx-text-fill: #F87171; -fx-border-color: #991B1B; -fx-border-radius: 12px; -fx-background-radius: 12px; -fx-padding: 2px 8px; -fx-font-size: 11px; -fx-font-weight: bold;");
+                    }
+                    setGraphic(badge);
+                    setText(null);
+                }
+            }
+        });
 
         TableColumn<FoodItem, String> colDesc = new TableColumn<>("Description");
         colDesc.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().getDescription()));
 
-        menuTable.getColumns().addAll(colId, colName, colCat, colPrice, colAvail, colDesc);
+        TableColumn<FoodItem, String> colImage = new TableColumn<>("Image");
+        colImage.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().getImageUrl()));
+        colImage.setMaxWidth(110);
+        colImage.setCellFactory(col -> new TableCell<>() {
+            private final ImageView thumb = new ImageView();
+            private final Label lbl = new Label();
+            private final HBox cellBox = new HBox(6);
+            {
+                thumb.setFitWidth(30);
+                thumb.setFitHeight(22);
+                thumb.setPreserveRatio(true);
+                cellBox.setAlignment(Pos.CENTER_LEFT);
+                lbl.setStyle("-fx-font-size: 10px; -fx-text-fill: #9CA3AF;");
+                cellBox.getChildren().addAll(thumb, lbl);
+            }
+            @Override
+            protected void updateItem(String imgPath, boolean empty) {
+                super.updateItem(imgPath, empty);
+                if (empty || imgPath == null || imgPath.isBlank()) {
+                    setGraphic(null);
+                    setText(null);
+                } else {
+                    lbl.setText(imgPath);
+                    loadThumbnail(thumb, imgPath);
+                    setGraphic(cellBox);
+                    setText(null);
+                }
+            }
+        });
+
+        menuTable.getColumns().addAll(colId, colImage, colName, colCat, colPrice, colAvail, colDesc);
         VBox.setVgrow(menuTable, Priority.ALWAYS);
 
         // Menu CRUD Actions Row
@@ -304,11 +455,11 @@ public class RestaurantDashboardView {
         crudBar.setAlignment(Pos.CENTER_LEFT);
 
         Button btnAdd = new Button("+ Add Dish");
-        btnAdd.setStyle("-fx-background-color: #10B981; -fx-text-fill: white; -fx-font-weight: bold;");
+        btnAdd.setStyle("-fx-background-color: #10B981; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8px 14px; -fx-background-radius: 6px; -fx-cursor: hand;");
         btnAdd.setOnAction(e -> openFoodDialog(stage, null));
 
         Button btnEdit = new Button("✎ Edit Dish");
-        btnEdit.setStyle("-fx-background-color: #2563EB; -fx-text-fill: white;");
+        btnEdit.setStyle("-fx-background-color: #2563EB; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8px 14px; -fx-background-radius: 6px; -fx-cursor: hand;");
         btnEdit.setOnAction(e -> {
             FoodItem sel = menuTable.getSelectionModel().getSelectedItem();
             if (sel != null) openFoodDialog(stage, sel);
@@ -316,7 +467,7 @@ public class RestaurantDashboardView {
         });
 
         Button btnDelete = new Button("✕ Delete");
-        btnDelete.setStyle("-fx-background-color: #EF4444; -fx-text-fill: white;");
+        btnDelete.setStyle("-fx-background-color: #EF4444; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8px 14px; -fx-background-radius: 6px; -fx-cursor: hand;");
         btnDelete.setOnAction(e -> {
             FoodItem sel = menuTable.getSelectionModel().getSelectedItem();
             if (sel != null) {
@@ -330,7 +481,7 @@ public class RestaurantDashboardView {
         });
 
         Button btnToggleAvail = new Button("Toggle Stock Availability");
-        btnToggleAvail.setStyle("-fx-background-color: #F59E0B; -fx-text-fill: #0F172A; -fx-font-weight: bold;");
+        btnToggleAvail.setStyle("-fx-background-color: #D97706; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8px 14px; -fx-background-radius: 6px; -fx-cursor: hand;");
         btnToggleAvail.setOnAction(e -> {
             FoodItem sel = menuTable.getSelectionModel().getSelectedItem();
             if (sel != null) {
@@ -346,11 +497,11 @@ public class RestaurantDashboardView {
 
         // JSON Import and Export Buttons (Academic Requirement)
         Button btnExportJson = new Button("📤 Export Menu (JSON)");
-        btnExportJson.setStyle("-fx-background-color: #334155; -fx-text-fill: white; -fx-font-size: 11px;");
+        btnExportJson.setStyle("-fx-background-color: #24242C; -fx-border-color: #3F3F4E; -fx-border-radius: 6px; -fx-background-radius: 6px; -fx-text-fill: white; -fx-font-size: 11px; -fx-font-weight: bold; -fx-padding: 8px 12px; -fx-cursor: hand;");
         btnExportJson.setOnAction(e -> exportMenu(stage));
 
         Button btnImportJson = new Button("📥 Import Menu (JSON)");
-        btnImportJson.setStyle("-fx-background-color: #0F766E; -fx-text-fill: white; -fx-font-size: 11px;");
+        btnImportJson.setStyle("-fx-background-color: #0D9488; -fx-text-fill: white; -fx-font-size: 11px; -fx-font-weight: bold; -fx-padding: 8px 12px; -fx-background-radius: 6px; -fx-cursor: hand;");
         btnImportJson.setOnAction(e -> importMenu(stage));
 
         crudBar.getChildren().addAll(btnAdd, btnEdit, btnDelete, btnToggleAvail, spacer, btnExportJson, btnImportJson);
@@ -367,64 +518,141 @@ public class RestaurantDashboardView {
 
         VBox form = new VBox(12);
         form.setPadding(new Insets(20));
-        form.setStyle("-fx-background-color: white;");
+        form.setStyle("-fx-background-color: #141417;");
 
+        Label lblName = new Label("Dish Name:");
+        lblName.setStyle("-fx-text-fill: #E2E8F0; -fx-font-weight: bold;");
         TextField txtName = new TextField(existing != null ? existing.getName() : "");
+        txtName.setPromptText("e.g. Hot & Crispy Chicken (4 pcs)");
+        txtName.setStyle("-fx-background-color: #1C1C22; -fx-border-color: #2E2E38; -fx-text-fill: white; -fx-padding: 8px 10px; -fx-background-radius: 6px; -fx-border-radius: 6px;");
+
+        Label lblCat = new Label("Category:");
+        lblCat.setStyle("-fx-text-fill: #E2E8F0; -fx-font-weight: bold;");
         TextField txtCategory = new TextField(existing != null ? existing.getCategory() : "Main");
-        TextField txtPrice = new TextField(existing != null ? String.valueOf(existing.getPrice()) : "9.99");
+        txtCategory.setPromptText("e.g. Main, Appetizer, Sides, Beverage, Dessert");
+        txtCategory.setStyle("-fx-background-color: #1C1C22; -fx-border-color: #2E2E38; -fx-text-fill: white; -fx-padding: 8px 10px; -fx-background-radius: 6px; -fx-border-radius: 6px;");
+
+        Label lblPrice = new Label("Price (BDT):");
+        lblPrice.setStyle("-fx-text-fill: #E2E8F0; -fx-font-weight: bold;");
+        TextField txtPrice = new TextField(existing != null ? String.valueOf(existing.getPrice()) : "250.00");
+        txtPrice.setPromptText("e.g. 250.00");
+        txtPrice.setStyle("-fx-background-color: #1C1C22; -fx-border-color: #2E2E38; -fx-text-fill: white; -fx-padding: 8px 10px; -fx-background-radius: 6px; -fx-border-radius: 6px;");
+
+        Label lblDesc = new Label("Description:");
+        lblDesc.setStyle("-fx-text-fill: #E2E8F0; -fx-font-weight: bold;");
         TextArea txtDesc = new TextArea(existing != null ? existing.getDescription() : "");
+        txtDesc.setPromptText("Delicious hot and crispy freshly prepared dish.");
         txtDesc.setPrefRowCount(3);
+        txtDesc.setStyle("-fx-control-inner-background: #1C1C22; -fx-border-color: #2E2E38; -fx-text-fill: white; -fx-background-radius: 6px; -fx-border-radius: 6px;");
+
         CheckBox chkAvail = new CheckBox("Available in stock");
         chkAvail.setSelected(existing == null || existing.isAvailable());
+        chkAvail.setStyle("-fx-text-fill: #FFFFFF; -fx-font-weight: bold;");
 
-        // --- Image section ---
-        final String[] selectedImagePath = { (existing != null ? existing.getImageUrl() : null) };
+        // --- Food Image Section ---
+        Label lblImgTitle = new Label("Food Item Image:");
+        lblImgTitle.setStyle("-fx-font-weight: bold; -fx-text-fill: #E2E8F0; -fx-font-size: 12px;");
+
+        StackPane previewContainer = new StackPane();
+        previewContainer.setPrefSize(360, 150);
+        previewContainer.setMinHeight(150);
+        previewContainer.setStyle("-fx-background-color: #1C1C22; -fx-border-color: #2E2E38; -fx-border-radius: 8px; -fx-background-radius: 8px; -fx-border-style: dashed;");
 
         ImageView preview = new ImageView();
         preview.setFitWidth(340);
-        preview.setFitHeight(160);
+        preview.setFitHeight(140);
         preview.setPreserveRatio(true);
-        preview.setStyle("-fx-background-color: #F1F5F9;");
-        loadPreviewImage(preview, selectedImagePath[0]);
+        preview.setSmooth(true);
 
-        Button btnChooseImg = new Button("🖼 Choose Image…");
-        btnChooseImg.setMaxWidth(Double.MAX_VALUE);
-        btnChooseImg.setStyle("-fx-background-color: #F1F5F9; -fx-text-fill: #475569; -fx-font-weight: bold; -fx-padding: 8px; -fx-border-color: #CBD5E1; -fx-border-radius: 6px; -fx-background-radius: 6px;");
+        VBox placeholderBox = new VBox(4);
+        placeholderBox.setAlignment(Pos.CENTER);
+        Label placeholderIcon = new Label("🍽");
+        placeholderIcon.setStyle("-fx-font-size: 32px; -fx-opacity: 0.6;");
+        Label placeholderText = new Label("No image selected\nBrowse an image file or choose a preset below");
+        placeholderText.setStyle("-fx-font-size: 11px; -fx-text-fill: #71717A; -fx-text-alignment: center;");
+        placeholderBox.getChildren().addAll(placeholderIcon, placeholderText);
+
+        previewContainer.getChildren().addAll(placeholderBox, preview);
+
+        TextField txtImageUrl = new TextField(existing != null && existing.getImageUrl() != null ? existing.getImageUrl() : "kfc.png");
+        txtImageUrl.setPromptText("Image filename (e.g. kfc.png or upload a new image)");
+        txtImageUrl.setStyle("-fx-background-color: #1C1C22; -fx-border-color: #2E2E38; -fx-text-fill: white; -fx-font-size: 11px; -fx-padding: 6px 10px; -fx-background-radius: 6px; -fx-border-radius: 6px;");
+
+        // Action buttons row for image
+        HBox imgBtnRow = new HBox(8);
+        imgBtnRow.setAlignment(Pos.CENTER_LEFT);
+
+        Button btnChooseImg = new Button("📁 Browse Image File…");
+        btnChooseImg.setStyle("-fx-background-color: #2563EB; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 11px; -fx-padding: 7px 12px; -fx-background-radius: 6px; -fx-cursor: hand;");
+
+        Button btnPresetKfc = new Button("🍗 Use KFC Brand");
+        btnPresetKfc.setStyle("-fx-background-color: #24242C; -fx-text-fill: #E2E8F0; -fx-font-size: 11px; -fx-border-color: #3F3F4E; -fx-border-radius: 6px; -fx-background-radius: 6px; -fx-cursor: hand;");
+        btnPresetKfc.setOnAction(e -> txtImageUrl.setText("kfc.png"));
+
+        Button btnClearImg = new Button("✕ Clear");
+        btnClearImg.setStyle("-fx-background-color: #450A0A; -fx-text-fill: #F87171; -fx-font-size: 11px; -fx-border-color: #991B1B; -fx-border-radius: 6px; -fx-background-radius: 6px; -fx-cursor: hand;");
+        btnClearImg.setOnAction(e -> txtImageUrl.setText(""));
+
+        imgBtnRow.getChildren().addAll(btnChooseImg, btnPresetKfc, btnClearImg);
+
+        // Synchronize preview
+        Runnable updatePreview = () -> {
+            String path = txtImageUrl.getText().trim();
+            loadPreviewImage(preview, path);
+            boolean hasImage = preview.getImage() != null;
+            preview.setVisible(hasImage);
+            placeholderBox.setVisible(!hasImage);
+        };
+
+        txtImageUrl.textProperty().addListener((obs, oldVal, newVal) -> updatePreview.run());
+        updatePreview.run();
 
         btnChooseImg.setOnAction(e -> {
             FileChooser fc = new FileChooser();
-            fc.setTitle("Select Food Image");
+            fc.setTitle("Select Food Item Image");
             fc.getExtensionFilters().add(
-                    new FileChooser.ExtensionFilter("Image Files", "*.png", "*.jpg", "*.jpeg", "*.gif", "*.bmp", "*.webp"));
+                    new FileChooser.ExtensionFilter("Image Files (*.png, *.jpg, *.jpeg, *.webp)", "*.png", "*.jpg", "*.jpeg", "*.gif", "*.bmp", "*.webp"));
             File chosen = fc.showOpenDialog(dialog);
             if (chosen != null) {
-                // Copy image into project images/ folder so path stays stable
                 String saved = copyImageToImagesDir(chosen);
-                selectedImagePath[0] = saved != null ? saved : chosen.getAbsolutePath();
-                loadPreviewImage(preview, selectedImagePath[0]);
+                txtImageUrl.setText(saved != null ? chosen.getName() : chosen.getAbsolutePath());
+                updatePreview.run();
+                AlertUtil.showInfo("Image Selected", "Image '" + chosen.getName() + "' chosen and saved to images folder.");
             }
         });
 
-        Button btnSave = new Button("Save Dish");
+        Button btnSave = new Button(existing == null ? "Save & Publish Dish" : "Update Dish");
         btnSave.setMaxWidth(Double.MAX_VALUE);
-        btnSave.setStyle("-fx-background-color: #FF6B00; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10px;");
+        btnSave.setStyle("-fx-background-color: #FF5722; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10px; -fx-font-size: 13px; -fx-background-radius: 6px; -fx-cursor: hand;");
 
         btnSave.setOnAction(e -> {
             try {
+                String name = txtName.getText().trim();
+                String category = txtCategory.getText().trim();
+                String desc = txtDesc.getText().trim();
+                String imgPath = txtImageUrl.getText().trim();
+                if (imgPath.isEmpty()) {
+                    imgPath = "kfc.png";
+                }
+                if (name.isEmpty()) {
+                    AlertUtil.showWarning("Missing Name", "Please enter a dish name.");
+                    return;
+                }
                 double price = Double.parseDouble(txtPrice.getText().trim());
-                String imgPath = selectedImagePath[0] != null ? selectedImagePath[0] : "food.png";
+
                 if (existing == null) {
-                    FoodItem newItem = new FoodItem(0, currentRestaurant.getId(), txtName.getText().trim(),
-                            txtDesc.getText().trim(), txtCategory.getText().trim(), price, chkAvail.isSelected(), imgPath);
+                    FoodItem newItem = new FoodItem(0, currentRestaurant.getId(), name, desc, category, price, chkAvail.isSelected(), imgPath);
                     menuService.addFoodItem(newItem);
+                    AlertUtil.showInfo("Dish Added", "'" + name + "' added successfully with image: " + imgPath);
                 } else {
-                    existing.setName(txtName.getText().trim());
-                    existing.setCategory(txtCategory.getText().trim());
+                    existing.setName(name);
+                    existing.setCategory(category);
                     existing.setPrice(price);
-                    existing.setDescription(txtDesc.getText().trim());
+                    existing.setDescription(desc);
                     existing.setAvailable(chkAvail.isSelected());
                     existing.setImageUrl(imgPath);
                     menuService.updateFoodItem(existing);
+                    AlertUtil.showInfo("Dish Updated", "'" + name + "' updated successfully with image: " + imgPath);
                 }
                 dialog.close();
                 refreshData();
@@ -436,22 +664,23 @@ public class RestaurantDashboardView {
         });
 
         form.getChildren().addAll(
-                new Label("Dish Name:"), txtName,
-                new Label("Category:"), txtCategory,
-                new Label("Price ($):"), txtPrice,
-                new Label("Description:"), txtDesc,
+                lblName, txtName,
+                lblCat, txtCategory,
+                lblPrice, txtPrice,
+                lblDesc, txtDesc,
                 chkAvail,
-                new Label("Food Image:"),
-                preview,
-                btnChooseImg,
+                lblImgTitle,
+                previewContainer,
+                txtImageUrl,
+                imgBtnRow,
                 btnSave
         );
 
         ScrollPane scroll = new ScrollPane(form);
         scroll.setFitToWidth(true);
-        scroll.setStyle("-fx-background-color: white; -fx-background: white;");
+        scroll.setStyle("-fx-background-color: #141417; -fx-background: #141417;");
 
-        Scene scene = new Scene(scroll, 400, 600);
+        Scene scene = new Scene(scroll, 420, 660);
         try {
             scene.getStylesheets().add(getClass().getResource("/css/style.css").toExternalForm());
         } catch (Exception ignored) {}
@@ -459,39 +688,490 @@ public class RestaurantDashboardView {
         dialog.show();
     }
 
-    /** Loads an image into the preview ImageView, showing a grey placeholder if path is null/missing. */
+    /** Loads an image into the preview ImageView, supporting classpath and local files. */
     private void loadPreviewImage(ImageView view, String path) {
-        if (path == null || path.isBlank() || path.equals("food.png")) {
+        if (path == null || path.isBlank()) {
             view.setImage(null);
-            view.setStyle("-fx-background-color: #E2E8F0;");
+            return;
+        }
+        // 1) Classpath resource (/images/<path>)
+        try {
+            var stream = getClass().getResourceAsStream("/images/" + path);
+            if (stream != null) {
+                Image img = new Image(stream, 340, 140, true, true);
+                view.setImage(img);
+                stream.close();
+                return;
+            }
+        } catch (Exception ignored) {}
+
+        // 2) Project images folder (images/<path>)
+        try {
+            File f = new File("images/" + path);
+            if (f.exists()) {
+                Image img = new Image(f.toURI().toString(), 340, 140, true, true);
+                view.setImage(img);
+                return;
+            }
+        } catch (Exception ignored) {}
+
+        // 3) Direct file path
+        try {
+            File f = new File(path);
+            if (f.exists()) {
+                Image img = new Image(f.toURI().toString(), 340, 140, true, true);
+                view.setImage(img);
+                return;
+            }
+        } catch (Exception ignored) {}
+
+        // 4) External URL
+        if (path.startsWith("http://") || path.startsWith("https://")) {
+            try {
+                Image img = new Image(path, 340, 140, true, true);
+                view.setImage(img);
+                return;
+            } catch (Exception ignored) {}
+        }
+
+        view.setImage(null);
+    }
+
+    /** Loads a compact thumbnail into an ImageView for table cells. */
+    private void loadThumbnail(ImageView view, String path) {
+        if (path == null || path.isBlank()) {
+            view.setImage(null);
             return;
         }
         try {
+            var stream = getClass().getResourceAsStream("/images/" + path);
+            if (stream != null) {
+                view.setImage(new Image(stream, 30, 22, true, true));
+                stream.close();
+                return;
+            }
+        } catch (Exception ignored) {}
+        try {
+            File f = new File("images/" + path);
+            if (f.exists()) {
+                view.setImage(new Image(f.toURI().toString(), 30, 22, true, true));
+                return;
+            }
+        } catch (Exception ignored) {}
+        try {
             File f = new File(path);
-            String uri = f.exists() ? f.toURI().toString() : path;
-            Image img = new Image(uri, true);
-            view.setImage(img);
-            view.setStyle("");
-        } catch (Exception ex) {
-            view.setImage(null);
-            view.setStyle("-fx-background-color: #E2E8F0;");
-        }
+            if (f.exists()) {
+                view.setImage(new Image(f.toURI().toString(), 30, 22, true, true));
+                return;
+            }
+        } catch (Exception ignored) {}
+        view.setImage(null);
     }
 
-    /** Copies the chosen file to the project-local images/ folder and returns the new absolute path. */
+    /** Copies the chosen file to the project images/ and target/classes/images/ folders. */
     private String copyImageToImagesDir(File source) {
         try {
             Path imagesDir = Paths.get(System.getProperty("user.dir"), "images");
             Files.createDirectories(imagesDir);
             Path dest = imagesDir.resolve(source.getName());
             Files.copy(source.toPath(), dest, StandardCopyOption.REPLACE_EXISTING);
-            return dest.toAbsolutePath().toString();
+
+            Path targetImagesDir = Paths.get(System.getProperty("user.dir"), "target", "classes", "images");
+            if (Files.exists(targetImagesDir)) {
+                Files.copy(source.toPath(), targetImagesDir.resolve(source.getName()), StandardCopyOption.REPLACE_EXISTING);
+            }
+
+            Path srcImagesDir = Paths.get(System.getProperty("user.dir"), "src", "main", "resources", "images");
+            if (Files.exists(srcImagesDir)) {
+                Files.copy(source.toPath(), srcImagesDir.resolve(source.getName()), StandardCopyOption.REPLACE_EXISTING);
+            }
+
+            return source.getName();
         } catch (IOException ex) {
-            return null;
+            return source.getAbsolutePath();
         }
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // REGISTERED RESTAURANTS TAB (MARKETPLACE SYNC)
+    // ─────────────────────────────────────────────────────────────────────────
 
+    private VBox createRegisteredRestaurantsTabContent(Stage stage) {
+        VBox box = new VBox(12);
+        box.setPadding(new Insets(16, 0, 0, 0));
+
+        // Callout Banner
+        HBox banner = new HBox(10);
+        banner.setAlignment(Pos.CENTER_LEFT);
+        banner.setPadding(new Insets(10, 14, 10, 14));
+        banner.setStyle("-fx-background-color: #0E2218; -fx-border-color: #065F46; -fx-border-radius: 8px; -fx-background-radius: 8px;");
+
+        Label badge = new Label("LIVE MARKETPLACE SYNC");
+        badge.setStyle("-fx-background-color: #059669; -fx-text-fill: white; -fx-font-size: 10px; -fx-font-weight: bold; -fx-padding: 3px 7px; -fx-background-radius: 4px;");
+
+        Label desc = new Label("The Customer Dashboard will strictly and only display partner restaurants registered here. Register new outlets or modify existing listings below.");
+        desc.setStyle("-fx-font-size: 11px; -fx-text-fill: #6EE7B7; -fx-font-weight: bold;");
+
+        banner.getChildren().addAll(badge, desc);
+
+        // Table of registered restaurants
+        registeredTable = new TableView<>();
+        registeredTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+
+        TableColumn<Restaurant, String> colId = new TableColumn<>("ID");
+        colId.setCellValueFactory(data -> new SimpleStringProperty(String.valueOf(data.getValue().getId())));
+        colId.setMaxWidth(50);
+        colId.setCellFactory(col -> new TableCell<>() {
+            @Override
+            protected void updateItem(String val, boolean empty) {
+                super.updateItem(val, empty);
+                if (empty || val == null) {
+                    setText(null);
+                } else {
+                    setText(val);
+                    setStyle("-fx-text-fill: #FF5722; -fx-font-weight: bold;");
+                }
+            }
+        });
+
+        TableColumn<Restaurant, String> colName = new TableColumn<>("Restaurant / Outlet");
+        colName.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().getName()));
+
+        TableColumn<Restaurant, String> colDesc = new TableColumn<>("Cuisine / Tagline");
+        colDesc.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().getDescription()));
+
+        TableColumn<Restaurant, String> colAddr = new TableColumn<>("Address");
+        colAddr.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().getAddress()));
+
+        TableColumn<Restaurant, String> colPhone = new TableColumn<>("Phone");
+        colPhone.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().getPhone()));
+        colPhone.setMaxWidth(130);
+
+        TableColumn<Restaurant, String> colRating = new TableColumn<>("Rating");
+        colRating.setCellValueFactory(data -> new SimpleStringProperty(String.format("%.1f ★", data.getValue().getRating())));
+        colRating.setMaxWidth(80);
+        colRating.setCellFactory(col -> new TableCell<>() {
+            @Override
+            protected void updateItem(String val, boolean empty) {
+                super.updateItem(val, empty);
+                if (empty || val == null) {
+                    setText(null);
+                } else {
+                    setText(val);
+                    setStyle("-fx-text-fill: #FF5722; -fx-font-weight: bold;");
+                }
+            }
+        });
+
+        TableColumn<Restaurant, String> colImage = new TableColumn<>("Banner Image");
+        colImage.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().getImageUrl()));
+        colImage.setMaxWidth(110);
+        colImage.setCellFactory(col -> new TableCell<>() {
+            private final ImageView thumb = new ImageView();
+            private final Label lbl = new Label();
+            private final HBox cellBox = new HBox(6);
+            {
+                thumb.setFitWidth(30);
+                thumb.setFitHeight(22);
+                thumb.setPreserveRatio(true);
+                cellBox.setAlignment(Pos.CENTER_LEFT);
+                lbl.setStyle("-fx-font-size: 10px; -fx-text-fill: #9CA3AF;");
+                cellBox.getChildren().addAll(thumb, lbl);
+            }
+            @Override
+            protected void updateItem(String imgPath, boolean empty) {
+                super.updateItem(imgPath, empty);
+                if (empty || imgPath == null || imgPath.isBlank()) {
+                    setGraphic(null);
+                    setText(null);
+                } else {
+                    lbl.setText(imgPath);
+                    loadThumbnail(thumb, imgPath);
+                    setGraphic(cellBox);
+                    setText(null);
+                }
+            }
+        });
+
+        TableColumn<Restaurant, String> colStatus = new TableColumn<>("Marketplace Status");
+        colStatus.setCellValueFactory(data -> {
+            boolean isActive = currentRestaurant != null && data.getValue().getId() == currentRestaurant.getId();
+            return new SimpleStringProperty(isActive ? "Active (Managing)" : "Live for Customers");
+        });
+        colStatus.setMaxWidth(150);
+        colStatus.setCellFactory(col -> new TableCell<>() {
+            private final Label badge = new Label();
+            {
+                badge.setAlignment(Pos.CENTER);
+            }
+            @Override
+            protected void updateItem(String val, boolean empty) {
+                super.updateItem(val, empty);
+                if (empty || val == null) {
+                    setGraphic(null);
+                    setText(null);
+                } else {
+                    badge.setText(val);
+                    if (val.contains("Active")) {
+                        badge.setStyle("-fx-background-color: #38241D; -fx-text-fill: #FF5722; -fx-border-color: #FF5722; -fx-border-radius: 12px; -fx-background-radius: 12px; -fx-padding: 3px 8px; -fx-font-size: 11px; -fx-font-weight: bold;");
+                    } else {
+                        badge.setStyle("-fx-background-color: #064E3B; -fx-text-fill: #34D399; -fx-border-color: #065F46; -fx-border-radius: 12px; -fx-background-radius: 12px; -fx-padding: 3px 8px; -fx-font-size: 11px; -fx-font-weight: bold;");
+                    }
+                    setGraphic(badge);
+                    setText(null);
+                }
+            }
+        });
+
+        registeredTable.getColumns().addAll(colId, colImage, colName, colDesc, colAddr, colPhone, colRating, colStatus);
+        VBox.setVgrow(registeredTable, Priority.ALWAYS);
+
+        // Action Buttons Row
+        HBox actionsRow = new HBox(10);
+        actionsRow.setAlignment(Pos.CENTER_LEFT);
+
+        Button btnAdd = new Button("➕ Register New Restaurant");
+        btnAdd.setStyle("-fx-background-color: #10B981; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8px 14px; -fx-background-radius: 6px; -fx-cursor: hand;");
+        btnAdd.setOnAction(e -> openRegisterRestaurantDialog(stage, null));
+
+        Button btnEdit = new Button("✎ Edit Details");
+        btnEdit.setStyle("-fx-background-color: #2563EB; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8px 14px; -fx-background-radius: 6px; -fx-cursor: hand;");
+        btnEdit.setOnAction(e -> {
+            Restaurant sel = registeredTable.getSelectionModel().getSelectedItem();
+            if (sel != null) openRegisterRestaurantDialog(stage, sel);
+            else AlertUtil.showWarning("Select Restaurant", "Please select a registered restaurant to edit.");
+        });
+
+        Button btnDelete = new Button("🗑 Unregister / Delete");
+        btnDelete.setStyle("-fx-background-color: #EF4444; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8px 14px; -fx-background-radius: 6px; -fx-cursor: hand;");
+        btnDelete.setOnAction(e -> {
+            Restaurant sel = registeredTable.getSelectionModel().getSelectedItem();
+            if (sel != null) {
+                if (AlertUtil.showConfirmation("Confirm Unregistration", "Are you sure you want to unregister '" + sel.getName() + "'?\nIt will be permanently removed from the Customer Dashboard marketplace.")) {
+                    if (restaurantDAO.delete(sel.getId())) {
+                        AlertUtil.showInfo("Unregistered", "'" + sel.getName() + "' removed from marketplace.");
+                        List<Restaurant> all = restaurantDAO.getAll();
+                        if (currentRestaurant != null && currentRestaurant.getId() == sel.getId()) {
+                            currentRestaurant = all.isEmpty() ? null : all.get(0);
+                            if (currentRestaurant != null) admin.setRestaurantId(currentRestaurant.getId());
+                        }
+                        refreshRestaurantCombo();
+                        refreshRegisteredRestaurantsTable();
+                        refreshData();
+                    } else {
+                        AlertUtil.showError("Error", "Could not delete restaurant.");
+                    }
+                }
+            } else {
+                AlertUtil.showWarning("Select Restaurant", "Please select a restaurant to unregister.");
+            }
+        });
+
+        Button btnSetActive = new Button("✔ Select Active for Menu/Orders");
+        btnSetActive.setStyle("-fx-background-color: #D97706; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8px 14px; -fx-background-radius: 6px; -fx-cursor: hand;");
+        btnSetActive.setOnAction(e -> {
+            Restaurant sel = registeredTable.getSelectionModel().getSelectedItem();
+            if (sel != null) {
+                currentRestaurant = sel;
+                admin.setRestaurantId(sel.getId());
+                stage.setTitle("QuickBite - Restaurant Admin (" + currentRestaurant.getName() + ")");
+                if (userLabel != null) userLabel.setText(currentRestaurant.getName() + " | Admin: " + admin.getName());
+                refreshRestaurantCombo();
+                refreshRegisteredRestaurantsTable();
+                refreshData();
+                AlertUtil.showInfo("Active Outlet Changed", "Now managing menu and orders for '" + sel.getName() + "'.");
+            } else {
+                AlertUtil.showWarning("Select Restaurant", "Please select a restaurant first.");
+            }
+        });
+
+        Region sp = new Region();
+        HBox.setHgrow(sp, Priority.ALWAYS);
+
+        Button btnRefresh = new Button("🔄 Refresh List");
+        btnRefresh.setStyle("-fx-background-color: #24242C; -fx-text-fill: #FFFFFF; -fx-border-color: #3F3F4E; -fx-border-radius: 6px; -fx-font-weight: bold; -fx-padding: 8px 14px; -fx-background-radius: 6px; -fx-cursor: hand;");
+        btnRefresh.setOnAction(e -> {
+            refreshRegisteredRestaurantsTable();
+            refreshRestaurantCombo();
+        });
+
+        actionsRow.getChildren().addAll(btnAdd, btnEdit, btnDelete, btnSetActive, sp, btnRefresh);
+
+        box.getChildren().addAll(banner, registeredTable, actionsRow);
+
+        refreshRegisteredRestaurantsTable();
+        return box;
+    }
+
+    private void openRegisterRestaurantDialog(Stage ownerStage, Restaurant existing) {
+        Stage dialog = new Stage();
+        dialog.initModality(Modality.WINDOW_MODAL);
+        dialog.initOwner(ownerStage);
+        dialog.setTitle(existing == null ? "Register New Restaurant on Marketplace" : "Edit Restaurant Details");
+
+        VBox form = new VBox(12);
+        form.setPadding(new Insets(20));
+        form.setStyle("-fx-background-color: #141417;");
+
+        Label l1 = new Label("Restaurant Name:");
+        l1.setStyle("-fx-text-fill: #E2E8F0; -fx-font-weight: bold;");
+        TextField txtName = new TextField(existing != null ? existing.getName() : "");
+        txtName.setStyle("-fx-background-color: #1C1C22; -fx-border-color: #2E2E38; -fx-text-fill: white; -fx-padding: 8px 10px; -fx-background-radius: 6px; -fx-border-radius: 6px;");
+
+        Label l2 = new Label("Cuisine / Tagline (e.g. Crispy Fried Chicken & Burgers):");
+        l2.setStyle("-fx-text-fill: #E2E8F0; -fx-font-weight: bold;");
+        TextField txtDesc = new TextField(existing != null ? existing.getDescription() : "");
+        txtDesc.setStyle("-fx-background-color: #1C1C22; -fx-border-color: #2E2E38; -fx-text-fill: white; -fx-padding: 8px 10px; -fx-background-radius: 6px; -fx-border-radius: 6px;");
+
+        Label l3 = new Label("Street Address:");
+        l3.setStyle("-fx-text-fill: #E2E8F0; -fx-font-weight: bold;");
+        TextField txtAddr = new TextField(existing != null ? existing.getAddress() : "");
+        txtAddr.setStyle("-fx-background-color: #1C1C22; -fx-border-color: #2E2E38; -fx-text-fill: white; -fx-padding: 8px 10px; -fx-background-radius: 6px; -fx-border-radius: 6px;");
+
+        Label l4 = new Label("Contact Phone:");
+        l4.setStyle("-fx-text-fill: #E2E8F0; -fx-font-weight: bold;");
+        TextField txtPhone = new TextField(existing != null ? existing.getPhone() : "+880 1711-000000");
+        txtPhone.setStyle("-fx-background-color: #1C1C22; -fx-border-color: #2E2E38; -fx-text-fill: white; -fx-padding: 8px 10px; -fx-background-radius: 6px; -fx-border-radius: 6px;");
+
+        Label l5 = new Label("Initial Customer Rating (1.0 to 5.0):");
+        l5.setStyle("-fx-text-fill: #E2E8F0; -fx-font-weight: bold;");
+        TextField txtRating = new TextField(existing != null ? String.valueOf(existing.getRating()) : "5.0");
+        txtRating.setStyle("-fx-background-color: #1C1C22; -fx-border-color: #2E2E38; -fx-text-fill: white; -fx-padding: 8px 10px; -fx-background-radius: 6px; -fx-border-radius: 6px;");
+
+        final String[] selectedImage = { existing != null ? existing.getImageUrl() : "kfc.png" };
+
+        StackPane previewContainer = new StackPane();
+        previewContainer.setPrefSize(360, 150);
+        previewContainer.setMinHeight(150);
+        previewContainer.setStyle("-fx-background-color: #1C1C22; -fx-border-color: #2E2E38; -fx-border-radius: 8px; -fx-background-radius: 8px; -fx-border-style: dashed;");
+
+        ImageView preview = new ImageView();
+        preview.setFitWidth(340);
+        preview.setFitHeight(140);
+        preview.setPreserveRatio(true);
+        loadPreviewImage(preview, selectedImage[0]);
+        previewContainer.getChildren().add(preview);
+
+        Button btnChooseImg = new Button("🖼 Choose Banner Image…");
+        btnChooseImg.setMaxWidth(Double.MAX_VALUE);
+        btnChooseImg.setStyle("-fx-background-color: #24242C; -fx-text-fill: #E2E8F0; -fx-font-weight: bold; -fx-padding: 8px; -fx-border-color: #3F3F4E; -fx-border-radius: 6px; -fx-background-radius: 6px; -fx-cursor: hand;");
+        btnChooseImg.setOnAction(e -> {
+            FileChooser fc = new FileChooser();
+            fc.setTitle("Select Restaurant Banner Image");
+            fc.getExtensionFilters().add(new FileChooser.ExtensionFilter("Image Files", "*.png", "*.jpg", "*.jpeg", "*.webp"));
+            File chosen = fc.showOpenDialog(dialog);
+            if (chosen != null) {
+                String saved = copyImageToImagesDir(chosen);
+                selectedImage[0] = saved != null ? chosen.getName() : chosen.getAbsolutePath();
+                loadPreviewImage(preview, selectedImage[0]);
+            }
+        });
+
+        Label l6 = new Label("Restaurant Banner:");
+        l6.setStyle("-fx-text-fill: #E2E8F0; -fx-font-weight: bold;");
+
+        Button btnSave = new Button(existing == null ? "Register & Publish Restaurant" : "Update Restaurant");
+        btnSave.setMaxWidth(Double.MAX_VALUE);
+        btnSave.setStyle("-fx-background-color: #10B981; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10px; -fx-background-radius: 6px; -fx-cursor: hand;");
+        btnSave.setOnAction(e -> {
+            String name = txtName.getText().trim();
+            String desc = txtDesc.getText().trim();
+            String addr = txtAddr.getText().trim();
+            String phone = txtPhone.getText().trim();
+            if (name.isEmpty() || desc.isEmpty() || addr.isEmpty()) {
+                AlertUtil.showWarning("Missing Details", "Please provide Restaurant Name, Cuisine/Tagline, and Street Address.");
+                return;
+            }
+            double rating = 5.0;
+            try {
+                rating = Double.parseDouble(txtRating.getText().trim());
+            } catch (Exception ignored) {}
+
+            String img = (selectedImage[0] != null && !selectedImage[0].isBlank()) ? selectedImage[0] : "kfc.png";
+
+            if (existing == null) {
+                Restaurant r = new Restaurant(0, name, desc, addr, phone, rating, img);
+                if (restaurantDAO.create(r)) {
+                    // Create 3 starter food items for this newly registered restaurant so it has menu items
+                    menuService.addFoodItem(new FoodItem(0, r.getId(), "Signature Combo Meal", "Chef special main dish with sides", "Main", 380.00, true, "kfc.png"));
+                    menuService.addFoodItem(new FoodItem(0, r.getId(), "Crispy Appetizer", "Golden fried hot snack", "Appetizer", 160.00, true, "kfc.png"));
+                    menuService.addFoodItem(new FoodItem(0, r.getId(), "Chilled Soft Drink", "Refreshing beverage 500ml", "Beverage", 50.00, true, "kfc.png"));
+
+                    currentRestaurant = r;
+                    admin.setRestaurantId(r.getId());
+                    if (mainStage != null) {
+                        mainStage.setTitle("QuickBite - Restaurant Admin (" + currentRestaurant.getName() + ")");
+                    }
+                    if (userLabel != null) userLabel.setText(currentRestaurant.getName() + " | Admin: " + admin.getName());
+                    AlertUtil.showInfo("Registration Successful!", "'" + name + "' is now registered and published live on the Customer Dashboard!");
+                } else {
+                    AlertUtil.showError("Registration Failed", "Could not register restaurant in database.");
+                    return;
+                }
+            } else {
+                existing.setName(name);
+                existing.setDescription(desc);
+                existing.setAddress(addr);
+                existing.setPhone(phone);
+                existing.setRating(rating);
+                existing.setImageUrl(img);
+                if (restaurantDAO.update(existing)) {
+                    AlertUtil.showInfo("Updated", "'" + name + "' details updated successfully.");
+                } else {
+                    AlertUtil.showError("Update Failed", "Could not update restaurant details.");
+                    return;
+                }
+            }
+
+            dialog.close();
+            refreshRestaurantCombo();
+            refreshRegisteredRestaurantsTable();
+            refreshData();
+        });
+
+        form.getChildren().addAll(
+                l1, txtName,
+                l2, txtDesc,
+                l3, txtAddr,
+                l4, txtPhone,
+                l5, txtRating,
+                l6, previewContainer, btnChooseImg,
+                btnSave
+        );
+
+        ScrollPane scroll = new ScrollPane(form);
+        scroll.setFitToWidth(true);
+        scroll.setStyle("-fx-background-color: #141417; -fx-background: #141417;");
+
+        Scene scene = new Scene(scroll, 420, 620);
+        try {
+            scene.getStylesheets().add(getClass().getResource("/css/style.css").toExternalForm());
+        } catch (Exception ignored) {}
+        dialog.setScene(scene);
+        dialog.show();
+    }
+
+    private void refreshRestaurantCombo() {
+        if (cmbRestaurants == null) return;
+        List<Restaurant> list = restaurantDAO.getAll();
+        cmbRestaurants.getItems().setAll(list);
+        if (currentRestaurant != null) {
+            for (Restaurant r : list) {
+                if (r.getId() == currentRestaurant.getId()) {
+                    cmbRestaurants.setValue(r);
+                    break;
+                }
+            }
+        } else if (!list.isEmpty()) {
+            cmbRestaurants.setValue(list.get(0));
+        }
+    }
+
+    private void refreshRegisteredRestaurantsTable() {
+        if (registeredTable == null) return;
+        List<Restaurant> list = restaurantDAO.getAll();
+        registeredTable.getItems().setAll(list);
+    }
 
     private void exportMenu(Stage stage) {
         FileChooser chooser = new FileChooser();
@@ -526,23 +1206,44 @@ public class RestaurantDashboardView {
     }
 
     private void refreshData() {
+        if (currentRestaurant == null) {
+            List<Restaurant> all = restaurantDAO.getAll();
+            if (!all.isEmpty()) {
+                currentRestaurant = all.get(0);
+                admin.setRestaurantId(currentRestaurant.getId());
+            }
+        }
+
+        if (currentRestaurant == null) {
+            if (ordersTable != null) ordersTable.getItems().clear();
+            if (menuTable != null) menuTable.getItems().clear();
+            if (lblTotalOrders != null) lblTotalOrders.setText("0");
+            if (lblTotalRevenue != null) lblTotalRevenue.setText("BDT 0.00");
+            if (lblActiveOrders != null) lblActiveOrders.setText("0");
+            if (lblRating != null) lblRating.setText("N/A");
+            return;
+        }
+
         // Refresh orders table
         List<Order> orders = orderService.getRestaurantOrders(currentRestaurant.getId());
-        ordersTable.getItems().setAll(orders);
+        if (ordersTable != null) ordersTable.getItems().setAll(orders);
 
         // Refresh menu table
         List<FoodItem> items = menuService.getFoodItems(currentRestaurant.getId());
-        menuTable.getItems().setAll(items);
+        if (menuTable != null) menuTable.getItems().setAll(items);
 
         // Refresh stats
         Map<String, Object> stats = orderService.getRestaurantStatistics(currentRestaurant.getId());
-        lblTotalOrders.setText(String.valueOf(stats.getOrDefault("total_orders", 0)));
-        lblTotalRevenue.setText(String.format("$%.2f", (Double) stats.getOrDefault("total_revenue", 0.0)));
-        lblActiveOrders.setText(String.valueOf(stats.getOrDefault("active_orders", 0)));
+        if (lblTotalOrders != null) lblTotalOrders.setText(String.valueOf(stats.getOrDefault("total_orders", 0)));
+        if (lblTotalRevenue != null) lblTotalRevenue.setText(String.format("BDT %.2f", (Double) stats.getOrDefault("total_revenue", 0.0)));
+        if (lblActiveOrders != null) lblActiveOrders.setText(String.valueOf(stats.getOrDefault("active_orders", 0)));
 
         Restaurant freshRest = restaurantDAO.getById(currentRestaurant.getId());
-        if (freshRest != null) {
+        if (freshRest != null && lblRating != null) {
             lblRating.setText(String.format("%.1f ★", freshRest.getRating()));
         }
+
+        refreshRestaurantCombo();
+        refreshRegisteredRestaurantsTable();
     }
 }

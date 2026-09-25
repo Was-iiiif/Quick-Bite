@@ -48,6 +48,6 @@ public class CartItem {
 
     @Override
     public String toString() {
-        return String.format("%s x%d ($%.2f)", foodItem.getName(), quantity, getSubtotal());
+        return String.format("%s x%d (BDT %.2f)", foodItem.getName(), quantity, getSubtotal());
     }
 }

@@ -59,7 +59,7 @@ public class OrderService {
             throw new RuntimeException("Could not place order. Transaction failed in database.");
         }
 
-        monitor.logEvent("OrderService", "Placed Order #" + order.getId() + " ($" + String.format("%.2f", totalAmount) + ") successfully.");
+        monitor.logEvent("OrderService", "Placed Order #" + order.getId() + " (BDT " + String.format("%.2f", totalAmount) + ") successfully.");
 
         // Optionally trigger background asynchronous simulation
         if (startAsyncSimulation) {
