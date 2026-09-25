@@ -61,8 +61,25 @@ public class RestaurantDAO {
         return list;
     }
 
+    public List<Restaurant> getByOwner(int adminId) {
+        List<Restaurant> list = new ArrayList<>();
+        String sql = "SELECT * FROM restaurants WHERE owner_admin_id = ? ORDER BY rating DESC, name ASC;";
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, adminId);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    list.add(mapRow(rs));
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("RestaurantDAO getByOwner error: " + e.getMessage());
+        }
+        return list;
+    }
+
     public boolean create(Restaurant r) {
-        String sql = "INSERT INTO restaurants (name, description, address, phone, rating, image_url) VALUES (?, ?, ?, ?, ?, ?);";
+        String sql = "INSERT INTO restaurants (name, description, address, phone, rating, image_url, owner_admin_id) VALUES (?, ?, ?, ?, ?, ?, ?);";
         try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             pstmt.setString(1, r.getName());
@@ -71,6 +88,7 @@ public class RestaurantDAO {
             pstmt.setString(4, r.getPhone());
             pstmt.setDouble(5, r.getRating() > 0 ? r.getRating() : 4.5);
             pstmt.setString(6, r.getImageUrl() != null ? r.getImageUrl() : "pizza.png");
+            pstmt.setInt(7, r.getOwnerAdminId());
             int affected = pstmt.executeUpdate();
             if (affected > 0) {
                 try (ResultSet rs = pstmt.getGeneratedKeys()) {
@@ -129,7 +147,7 @@ public class RestaurantDAO {
 
 
     private Restaurant mapRow(ResultSet rs) throws SQLException {
-        return new Restaurant(
+        Restaurant r = new Restaurant(
                 rs.getInt("id"),
                 rs.getString("name"),
                 rs.getString("description"),
@@ -138,5 +156,7 @@ public class RestaurantDAO {
                 rs.getDouble("rating"),
                 rs.getString("image_url")
         );
+        r.setOwnerAdminId(rs.getInt("owner_admin_id"));
+        return r;
     }
 }
