@@ -11,6 +11,7 @@ public class Restaurant {
     private String phone;
     private double rating;
     private String imageUrl;
+    private int ownerAdminId;
 
     public Restaurant() {
     }
@@ -23,6 +24,17 @@ public class Restaurant {
         this.phone = phone;
         this.rating = rating;
         this.imageUrl = imageUrl;
+    }
+
+    public Restaurant(int id, String name, String description, String address, String phone, double rating, String imageUrl, int ownerAdminId) {
+        this.id = id;
+        this.name = name;
+        this.description = description;
+        this.address = address;
+        this.phone = phone;
+        this.rating = rating;
+        this.imageUrl = imageUrl;
+        this.ownerAdminId = ownerAdminId;
     }
 
     public int getId() {
@@ -79,6 +91,14 @@ public class Restaurant {
 
     public void setImageUrl(String imageUrl) {
         this.imageUrl = imageUrl;
+    }
+
+    public int getOwnerAdminId() {
+        return ownerAdminId;
+    }
+
+    public void setOwnerAdminId(int ownerAdminId) {
+        this.ownerAdminId = ownerAdminId;
     }
 
     @Override

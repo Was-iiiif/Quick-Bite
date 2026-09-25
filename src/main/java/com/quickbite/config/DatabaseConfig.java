@@ -4,6 +4,7 @@ import com.quickbite.util.DatabaseSeeder;
 import java.io.File;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
@@ -71,9 +72,28 @@ public class DatabaseConfig {
                     phone TEXT,
                     address TEXT,
                     role TEXT NOT NULL,
-                    created_at TEXT NOT NULL
+                    created_at TEXT NOT NULL,
+                    restaurant_id INTEGER,
+                    FOREIGN KEY (restaurant_id) REFERENCES restaurants (id) ON DELETE SET NULL
                 );
             """);
+
+            // 1b. Migration: add restaurant_id to older databases that were created
+            // before this column existed, so a Restaurant Admin's owned restaurant
+            // can actually be persisted instead of being re-guessed on every login.
+            boolean hasRestaurantIdColumn = false;
+            try (ResultSet cols = stmt.executeQuery("PRAGMA table_info(users);")) {
+                while (cols.next()) {
+                    if ("restaurant_id".equalsIgnoreCase(cols.getString("name"))) {
+                        hasRestaurantIdColumn = true;
+                        break;
+                    }
+                }
+            }
+            if (!hasRestaurantIdColumn) {
+                stmt.execute("ALTER TABLE users ADD COLUMN restaurant_id INTEGER;");
+                System.out.println("Migrated users table: added restaurant_id column.");
+            }
 
             // 2. Restaurants Table
             stmt.execute("""
@@ -84,9 +104,27 @@ public class DatabaseConfig {
                     address TEXT NOT NULL,
                     phone TEXT,
                     rating REAL DEFAULT 5.0,
-                    image_url TEXT
+                    image_url TEXT,
+                    owner_admin_id INTEGER
                 );
             """);
+
+            // 2b. Migration: add owner_admin_id to older databases that were created
+            // before this column existed, so restaurants can be scoped to their
+            // registering admin instead of being globally visible to all admins.
+            boolean hasOwnerAdminIdColumn = false;
+            try (ResultSet cols = stmt.executeQuery("PRAGMA table_info(restaurants);")) {
+                while (cols.next()) {
+                    if ("owner_admin_id".equalsIgnoreCase(cols.getString("name"))) {
+                        hasOwnerAdminIdColumn = true;
+                        break;
+                    }
+                }
+            }
+            if (!hasOwnerAdminIdColumn) {
+                stmt.execute("ALTER TABLE restaurants ADD COLUMN owner_admin_id INTEGER;");
+                System.out.println("Migrated restaurants table: added owner_admin_id column.");
+            }
 
             // 3. Food Items Table
             stmt.execute("""
@@ -178,4 +216,3 @@ public class DatabaseConfig {
         initializeDatabase();
     }
 }
-
