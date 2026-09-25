@@ -1072,13 +1072,13 @@ public class CustomerDashboardView {
         btnApplyPromo.setStyle("-fx-background-color: transparent; -fx-text-fill: #FF5722; -fx-font-size: 11px; -fx-font-weight: bold; -fx-cursor: hand;");
         btnApplyPromo.setOnAction(e -> {
             String code = txtPromo.getText().trim();
-            if ("QUICKBITE".equalsIgnoreCase(code) || "EMBER".equalsIgnoreCase(code) || "FREE".equalsIgnoreCase(code)) {
-                promoDiscount = 5.00;
+            if ("CSEKUET".equalsIgnoreCase(code) || "KUETIAN".equalsIgnoreCase(code) ) {
+                promoDiscount = 50.00;
                 appliedPromo = code.toUpperCase();
                 AlertUtil.showInfo("Promo Applied!", "Code '" + appliedPromo + "' applied! BDT 5.00 discount activated.");
                 refreshCartDisplay();
             } else {
-                AlertUtil.showWarning("Invalid Code", "Code '" + code + "' is not valid. Try 'QUICKBITE'.");
+                AlertUtil.showWarning("Invalid Code", "Code '" + code + "' is not valid.'.");
             }
         });
 

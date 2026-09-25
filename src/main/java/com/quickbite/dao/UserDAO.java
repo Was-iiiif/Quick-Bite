@@ -65,7 +65,7 @@ public class UserDAO {
     }
 
     public boolean create(User user) {
-        String sql = "INSERT INTO users (name, email, password, phone, address, role, created_at) VALUES (?, ?, ?, ?, ?, ?, ?);";
+        String sql = "INSERT INTO users (name, email, password, phone, address, role, created_at, restaurant_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?);";
         try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             String now = LocalDateTime.now().format(FORMATTER);
@@ -76,6 +76,14 @@ public class UserDAO {
             pstmt.setString(5, user.getAddress());
             pstmt.setString(6, user.getRole());
             pstmt.setString(7, now);
+
+            // Only Restaurant Admins carry a restaurant_id; a brand-new admin has
+            // none yet (0 / not set) until they register or claim a restaurant.
+            if (user instanceof RestaurantAdmin admin && admin.getRestaurantId() > 0) {
+                pstmt.setInt(8, admin.getRestaurantId());
+            } else {
+                pstmt.setNull(8, Types.INTEGER);
+            }
 
             int affected = pstmt.executeUpdate();
             if (affected > 0) {
@@ -89,6 +97,25 @@ public class UserDAO {
             }
         } catch (SQLException e) {
             System.err.println("UserDAO create error: " + e.getMessage());
+        }
+        return false;
+    }
+
+    /**
+     * Persists which restaurant a Restaurant Admin owns/manages.
+     * Must be called whenever a new restaurant is registered or an admin
+     * switches their "active outlet" — otherwise the assignment only lives
+     * in memory for the current session and is lost/reset on next login.
+     */
+    public boolean updateRestaurantId(int userId, int restaurantId) {
+        String sql = "UPDATE users SET restaurant_id = ? WHERE id = ?;";
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, restaurantId);
+            pstmt.setInt(2, userId);
+            return pstmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.err.println("UserDAO updateRestaurantId error: " + e.getMessage());
         }
         return false;
     }
@@ -121,8 +148,13 @@ public class UserDAO {
         if ("CUSTOMER".equalsIgnoreCase(role)) {
             return new Customer(id, name, email, password, phone, address, createdAt);
         } else if ("RESTAURANT_ADMIN".equalsIgnoreCase(role)) {
-            // By default, map admin to restaurant 1 (Bella Italia) or id
-            int restId = 1;
+            // Read the admin's actual owned restaurant from the database instead
+            // of hard-coding restaurant #1 for everyone. 0 means "no restaurant
+            // registered yet" — the dashboard will prompt the admin to create one.
+            int restId = rs.getInt("restaurant_id");
+            if (rs.wasNull()) {
+                restId = 0;
+            }
             return new RestaurantAdmin(id, name, email, password, phone, address, createdAt, restId);
         } else if ("DELIVERY_STAFF".equalsIgnoreCase(role)) {
             return new DeliveryStaff(id, name, email, password, phone, address, createdAt, true, "Motorbike");

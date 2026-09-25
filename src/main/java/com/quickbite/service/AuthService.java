@@ -54,7 +54,11 @@ public class AuthService {
 
         User newUser;
         if ("RESTAURANT_ADMIN".equalsIgnoreCase(role)) {
-            newUser = new RestaurantAdmin(0, name.trim(), email.trim().toLowerCase(), password, phone.trim(), address.trim(), null, 1);
+            // 0 = no restaurant registered yet. Each new admin starts with their
+            // OWN empty slate instead of being silently pointed at restaurant #1
+            // (previously hard-coded here, which caused every new admin account
+            // to land on the same existing restaurant's dashboard).
+            newUser = new RestaurantAdmin(0, name.trim(), email.trim().toLowerCase(), password, phone.trim(), address.trim(), null, 0);
         } else if ("DELIVERY_STAFF".equalsIgnoreCase(role)) {
             newUser = new DeliveryStaff(0, name.trim(), email.trim().toLowerCase(), password, phone.trim(), address.trim(), null, true, "Motorbike");
         } else {

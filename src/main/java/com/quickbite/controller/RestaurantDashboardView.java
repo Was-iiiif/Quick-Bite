@@ -2,6 +2,7 @@ package com.quickbite.controller;
 
 import com.quickbite.concurrency.DeliveryDriverPool;
 import com.quickbite.dao.RestaurantDAO;
+import com.quickbite.dao.UserDAO;
 import com.quickbite.model.*;
 import com.quickbite.service.AuthService;
 import com.quickbite.service.MenuService;
@@ -39,6 +40,7 @@ import java.util.Map;
 public class RestaurantDashboardView {
     private final RestaurantAdmin admin;
     private final RestaurantDAO restaurantDAO = new RestaurantDAO();
+    private final UserDAO userDAO = new UserDAO();
     private final MenuService menuService = new MenuService();
     private final OrderService orderService = new OrderService();
     private final DeliveryDriverPool driverPool = DeliveryDriverPool.getInstance();
@@ -63,17 +65,16 @@ public class RestaurantDashboardView {
 
     public void show(Stage stage) {
         this.mainStage = stage;
-        List<Restaurant> allRests = restaurantDAO.getAll();
-        currentRestaurant = restaurantDAO.getById(admin.getRestaurantId());
-        if (currentRestaurant == null && !allRests.isEmpty()) {
-            currentRestaurant = allRests.get(0);
-            admin.setRestaurantId(currentRestaurant.getId());
-        }
-        if (currentRestaurant == null) {
-            currentRestaurant = new Restaurant(1, "KFC Bangladesh", "Crispy Fried Chicken & Burgers", "Gulshan-1, Dhaka", "+880 1711-000000", 5.0, "kfc.png");
-        }
 
-        stage.setTitle("QuickBite - Restaurant Admin (" + currentRestaurant.getName() + ")");
+        // IMPORTANT: Do NOT fall back to "the first restaurant in the list" or a
+        // synthetic default (e.g. KFC) when the admin doesn't own a restaurant yet.
+        // That fallback was the root cause of every new admin account landing on
+        // someone else's dashboard. A brand-new admin (restaurantId == 0 / not
+        // found) simply has no restaurant, and gets prompted to register one below.
+        currentRestaurant = admin.getRestaurantId() > 0 ? restaurantDAO.getById(admin.getRestaurantId()) : null;
+
+        stage.setTitle("QuickBite - Restaurant Admin (" +
+                (currentRestaurant != null ? currentRestaurant.getName() : "No Restaurant Yet") + ")");
 
         BorderPane root = new BorderPane();
         root.setStyle("-fx-background-color: #0E0E10;");
@@ -119,6 +120,16 @@ public class RestaurantDashboardView {
         } catch (Exception ignored) {}
         stage.setScene(scene);
         stage.show();
+
+        // Brand-new admins (no restaurant registered yet) get prompted to set one
+        // up immediately, instead of ever silently borrowing an existing outlet.
+        if (currentRestaurant == null) {
+            Platform.runLater(() -> {
+                AlertUtil.showInfo("Welcome to QuickBite!",
+                        "You don't have a restaurant registered yet. Let's set one up now so customers can find you.");
+                openRegisterRestaurantDialog(stage, null);
+            });
+        }
     }
 
     private HBox createNavBar(Stage stage) {
@@ -142,6 +153,7 @@ public class RestaurantDashboardView {
             if (sel != null && (currentRestaurant == null || sel.getId() != currentRestaurant.getId())) {
                 currentRestaurant = sel;
                 admin.setRestaurantId(sel.getId());
+                userDAO.updateRestaurantId(admin.getId(), sel.getId()); // persist ownership
                 stage.setTitle("QuickBite - Restaurant Admin (" + currentRestaurant.getName() + ")");
                 if (userLabel != null) userLabel.setText(currentRestaurant.getName() + " | Admin: " + admin.getName());
                 refreshData();
@@ -152,7 +164,7 @@ public class RestaurantDashboardView {
         btnRegisterNav.setStyle("-fx-background-color: #10B981; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 11px; -fx-padding: 6px 12px; -fx-background-radius: 6px; -fx-cursor: hand;");
         btnRegisterNav.setOnAction(e -> openRegisterRestaurantDialog(stage, null));
 
-        userLabel = new Label(currentRestaurant.getName() + " | Admin: " + admin.getName());
+        userLabel = new Label((currentRestaurant != null ? currentRestaurant.getName() : "No Restaurant Yet") + " | Admin: " + admin.getName());
         userLabel.setStyle("-fx-text-fill: #FFFFFF; -fx-font-weight: bold; -fx-font-size: 12px;");
 
         Label roleBadge = new Label("Restaurant Admin");
@@ -319,7 +331,6 @@ public class RestaurantDashboardView {
                 return;
             }
             orderService.updateOrderStatus(sel.getId(), Order.STATUS_READY);
-            // Trigger synchronized driver pool allocation
             int driverId = driverPool.acquireDriver(sel.getId());
             if (driverId != -1) {
                 AlertUtil.showInfo("Driver Dispatched", "Driver #" + driverId + " has been assigned via synchronized driver pool!");
@@ -495,7 +506,6 @@ public class RestaurantDashboardView {
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        // JSON Import and Export Buttons (Academic Requirement)
         Button btnExportJson = new Button("📤 Export Menu (JSON)");
         btnExportJson.setStyle("-fx-background-color: #24242C; -fx-border-color: #3F3F4E; -fx-border-radius: 6px; -fx-background-radius: 6px; -fx-text-fill: white; -fx-font-size: 11px; -fx-font-weight: bold; -fx-padding: 8px 12px; -fx-cursor: hand;");
         btnExportJson.setOnAction(e -> exportMenu(stage));
@@ -511,6 +521,11 @@ public class RestaurantDashboardView {
     }
 
     private void openFoodDialog(Stage ownerStage, FoodItem existing) {
+        if (currentRestaurant == null) {
+            AlertUtil.showWarning("No Restaurant", "Please register a restaurant first before adding dishes.");
+            return;
+        }
+
         Stage dialog = new Stage();
         dialog.initModality(Modality.WINDOW_MODAL);
         dialog.initOwner(ownerStage);
@@ -549,7 +564,6 @@ public class RestaurantDashboardView {
         chkAvail.setSelected(existing == null || existing.isAvailable());
         chkAvail.setStyle("-fx-text-fill: #FFFFFF; -fx-font-weight: bold;");
 
-        // --- Food Image Section ---
         Label lblImgTitle = new Label("Food Item Image:");
         lblImgTitle.setStyle("-fx-font-weight: bold; -fx-text-fill: #E2E8F0; -fx-font-size: 12px;");
 
@@ -578,7 +592,6 @@ public class RestaurantDashboardView {
         txtImageUrl.setPromptText("Image filename (e.g. kfc.png or upload a new image)");
         txtImageUrl.setStyle("-fx-background-color: #1C1C22; -fx-border-color: #2E2E38; -fx-text-fill: white; -fx-font-size: 11px; -fx-padding: 6px 10px; -fx-background-radius: 6px; -fx-border-radius: 6px;");
 
-        // Action buttons row for image
         HBox imgBtnRow = new HBox(8);
         imgBtnRow.setAlignment(Pos.CENTER_LEFT);
 
@@ -595,7 +608,6 @@ public class RestaurantDashboardView {
 
         imgBtnRow.getChildren().addAll(btnChooseImg, btnPresetKfc, btnClearImg);
 
-        // Synchronize preview
         Runnable updatePreview = () -> {
             String path = txtImageUrl.getText().trim();
             loadPreviewImage(preview, path);
@@ -688,13 +700,11 @@ public class RestaurantDashboardView {
         dialog.show();
     }
 
-    /** Loads an image into the preview ImageView, supporting classpath and local files. */
     private void loadPreviewImage(ImageView view, String path) {
         if (path == null || path.isBlank()) {
             view.setImage(null);
             return;
         }
-        // 1) Classpath resource (/images/<path>)
         try {
             var stream = getClass().getResourceAsStream("/images/" + path);
             if (stream != null) {
@@ -705,7 +715,6 @@ public class RestaurantDashboardView {
             }
         } catch (Exception ignored) {}
 
-        // 2) Project images folder (images/<path>)
         try {
             File f = new File("images/" + path);
             if (f.exists()) {
@@ -715,7 +724,6 @@ public class RestaurantDashboardView {
             }
         } catch (Exception ignored) {}
 
-        // 3) Direct file path
         try {
             File f = new File(path);
             if (f.exists()) {
@@ -725,7 +733,6 @@ public class RestaurantDashboardView {
             }
         } catch (Exception ignored) {}
 
-        // 4) External URL
         if (path.startsWith("http://") || path.startsWith("https://")) {
             try {
                 Image img = new Image(path, 340, 140, true, true);
@@ -737,7 +744,6 @@ public class RestaurantDashboardView {
         view.setImage(null);
     }
 
-    /** Loads a compact thumbnail into an ImageView for table cells. */
     private void loadThumbnail(ImageView view, String path) {
         if (path == null || path.isBlank()) {
             view.setImage(null);
@@ -768,7 +774,6 @@ public class RestaurantDashboardView {
         view.setImage(null);
     }
 
-    /** Copies the chosen file to the project images/ and target/classes/images/ folders. */
     private String copyImageToImagesDir(File source) {
         try {
             Path imagesDir = Paths.get(System.getProperty("user.dir"), "images");
@@ -800,7 +805,6 @@ public class RestaurantDashboardView {
         VBox box = new VBox(12);
         box.setPadding(new Insets(16, 0, 0, 0));
 
-        // Callout Banner
         HBox banner = new HBox(10);
         banner.setAlignment(Pos.CENTER_LEFT);
         banner.setPadding(new Insets(10, 14, 10, 14));
@@ -814,7 +818,6 @@ public class RestaurantDashboardView {
 
         banner.getChildren().addAll(badge, desc);
 
-        // Table of registered restaurants
         registeredTable = new TableView<>();
         registeredTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
 
@@ -926,7 +929,6 @@ public class RestaurantDashboardView {
         registeredTable.getColumns().addAll(colId, colImage, colName, colDesc, colAddr, colPhone, colRating, colStatus);
         VBox.setVgrow(registeredTable, Priority.ALWAYS);
 
-        // Action Buttons Row
         HBox actionsRow = new HBox(10);
         actionsRow.setAlignment(Pos.CENTER_LEFT);
 
@@ -938,32 +940,39 @@ public class RestaurantDashboardView {
         btnEdit.setStyle("-fx-background-color: #2563EB; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8px 14px; -fx-background-radius: 6px; -fx-cursor: hand;");
         btnEdit.setOnAction(e -> {
             Restaurant sel = registeredTable.getSelectionModel().getSelectedItem();
-            if (sel != null) openRegisterRestaurantDialog(stage, sel);
-            else AlertUtil.showWarning("Select Restaurant", "Please select a registered restaurant to edit.");
+            if (sel == null) {
+                AlertUtil.showWarning("Select Restaurant", "Please select a registered restaurant to edit.");
+            } else if (sel.getOwnerAdminId() != admin.getId()) {
+                AlertUtil.showWarning("Access Denied", "You can only edit restaurants you registered.");
+            } else {
+                openRegisterRestaurantDialog(stage, sel);
+            }
         });
 
         Button btnDelete = new Button("🗑 Unregister / Delete");
         btnDelete.setStyle("-fx-background-color: #EF4444; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8px 14px; -fx-background-radius: 6px; -fx-cursor: hand;");
         btnDelete.setOnAction(e -> {
             Restaurant sel = registeredTable.getSelectionModel().getSelectedItem();
-            if (sel != null) {
-                if (AlertUtil.showConfirmation("Confirm Unregistration", "Are you sure you want to unregister '" + sel.getName() + "'?\nIt will be permanently removed from the Customer Dashboard marketplace.")) {
-                    if (restaurantDAO.delete(sel.getId())) {
-                        AlertUtil.showInfo("Unregistered", "'" + sel.getName() + "' removed from marketplace.");
-                        List<Restaurant> all = restaurantDAO.getAll();
-                        if (currentRestaurant != null && currentRestaurant.getId() == sel.getId()) {
-                            currentRestaurant = all.isEmpty() ? null : all.get(0);
-                            if (currentRestaurant != null) admin.setRestaurantId(currentRestaurant.getId());
-                        }
-                        refreshRestaurantCombo();
-                        refreshRegisteredRestaurantsTable();
-                        refreshData();
-                    } else {
-                        AlertUtil.showError("Error", "Could not delete restaurant.");
-                    }
-                }
-            } else {
+            if (sel == null) {
                 AlertUtil.showWarning("Select Restaurant", "Please select a restaurant to unregister.");
+            } else if (sel.getOwnerAdminId() != admin.getId()) {
+                AlertUtil.showWarning("Access Denied", "You can only unregister restaurants you own.");
+            } else if (AlertUtil.showConfirmation("Confirm Unregistration", "Are you sure you want to unregister '" + sel.getName() + "'?\nIt will be permanently removed from the Customer Dashboard marketplace.")) {
+                if (restaurantDAO.delete(sel.getId())) {
+                    AlertUtil.showInfo("Unregistered", "'" + sel.getName() + "' removed from marketplace.");
+                    if (currentRestaurant != null && currentRestaurant.getId() == sel.getId()) {
+                        // Do NOT fall back to some other restaurant. This admin
+                        // now owns nothing until they register/select one.
+                        currentRestaurant = null;
+                        admin.setRestaurantId(0);
+                        userDAO.updateRestaurantId(admin.getId(), 0);
+                    }
+                    refreshRestaurantCombo();
+                    refreshRegisteredRestaurantsTable();
+                    refreshData();
+                } else {
+                    AlertUtil.showError("Error", "Could not delete restaurant.");
+                }
             }
         });
 
@@ -971,17 +980,20 @@ public class RestaurantDashboardView {
         btnSetActive.setStyle("-fx-background-color: #D97706; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8px 14px; -fx-background-radius: 6px; -fx-cursor: hand;");
         btnSetActive.setOnAction(e -> {
             Restaurant sel = registeredTable.getSelectionModel().getSelectedItem();
-            if (sel != null) {
+            if (sel == null) {
+                AlertUtil.showWarning("Select Restaurant", "Please select a restaurant first.");
+            } else if (sel.getOwnerAdminId() != admin.getId()) {
+                AlertUtil.showWarning("Access Denied", "You can only activate restaurants you own.");
+            } else {
                 currentRestaurant = sel;
                 admin.setRestaurantId(sel.getId());
+                userDAO.updateRestaurantId(admin.getId(), sel.getId()); // persist ownership
                 stage.setTitle("QuickBite - Restaurant Admin (" + currentRestaurant.getName() + ")");
                 if (userLabel != null) userLabel.setText(currentRestaurant.getName() + " | Admin: " + admin.getName());
                 refreshRestaurantCombo();
                 refreshRegisteredRestaurantsTable();
                 refreshData();
                 AlertUtil.showInfo("Active Outlet Changed", "Now managing menu and orders for '" + sel.getName() + "'.");
-            } else {
-                AlertUtil.showWarning("Select Restaurant", "Please select a restaurant first.");
             }
         });
 
@@ -1091,14 +1103,11 @@ public class RestaurantDashboardView {
 
             if (existing == null) {
                 Restaurant r = new Restaurant(0, name, desc, addr, phone, rating, img);
+                r.setOwnerAdminId(admin.getId());
                 if (restaurantDAO.create(r)) {
-                    // Create 3 starter food items for this newly registered restaurant so it has menu items
-                    menuService.addFoodItem(new FoodItem(0, r.getId(), "Signature Combo Meal", "Chef special main dish with sides", "Main", 380.00, true, "kfc.png"));
-                    menuService.addFoodItem(new FoodItem(0, r.getId(), "Crispy Appetizer", "Golden fried hot snack", "Appetizer", 160.00, true, "kfc.png"));
-                    menuService.addFoodItem(new FoodItem(0, r.getId(), "Chilled Soft Drink", "Refreshing beverage 500ml", "Beverage", 50.00, true, "kfc.png"));
-
                     currentRestaurant = r;
                     admin.setRestaurantId(r.getId());
+                    userDAO.updateRestaurantId(admin.getId(), r.getId()); // persist ownership — critical fix
                     if (mainStage != null) {
                         mainStage.setTitle("QuickBite - Restaurant Admin (" + currentRestaurant.getName() + ")");
                     }
@@ -1153,7 +1162,7 @@ public class RestaurantDashboardView {
 
     private void refreshRestaurantCombo() {
         if (cmbRestaurants == null) return;
-        List<Restaurant> list = restaurantDAO.getAll();
+        List<Restaurant> list = restaurantDAO.getByOwner(admin.getId());
         cmbRestaurants.getItems().setAll(list);
         if (currentRestaurant != null) {
             for (Restaurant r : list) {
@@ -1162,18 +1171,24 @@ public class RestaurantDashboardView {
                     break;
                 }
             }
-        } else if (!list.isEmpty()) {
-            cmbRestaurants.setValue(list.get(0));
+        } else {
+            // No restaurant owned yet — leave the combo unselected rather than
+            // silently picking list.get(0), which would point at someone else's outlet.
+            cmbRestaurants.setValue(null);
         }
     }
 
     private void refreshRegisteredRestaurantsTable() {
         if (registeredTable == null) return;
-        List<Restaurant> list = restaurantDAO.getAll();
+        List<Restaurant> list = restaurantDAO.getByOwner(admin.getId());
         registeredTable.getItems().setAll(list);
     }
 
     private void exportMenu(Stage stage) {
+        if (currentRestaurant == null) {
+            AlertUtil.showWarning("No Restaurant", "Please register a restaurant first.");
+            return;
+        }
         FileChooser chooser = new FileChooser();
         chooser.setTitle("Export Menu to JSON File");
         chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("JSON Files (*.json)", "*.json"));
@@ -1190,6 +1205,10 @@ public class RestaurantDashboardView {
     }
 
     private void importMenu(Stage stage) {
+        if (currentRestaurant == null) {
+            AlertUtil.showWarning("No Restaurant", "Please register a restaurant first.");
+            return;
+        }
         FileChooser chooser = new FileChooser();
         chooser.setTitle("Import Menu from JSON File");
         chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("JSON Files (*.json)", "*.json"));
@@ -1206,14 +1225,9 @@ public class RestaurantDashboardView {
     }
 
     private void refreshData() {
-        if (currentRestaurant == null) {
-            List<Restaurant> all = restaurantDAO.getAll();
-            if (!all.isEmpty()) {
-                currentRestaurant = all.get(0);
-                admin.setRestaurantId(currentRestaurant.getId());
-            }
-        }
-
+        // NOTE: previously this method also fell back to allRests.get(0) when
+        // currentRestaurant was null — the same bug as in show(). That fallback
+        // has been removed. A restaurant-less admin just sees empty/zeroed stats.
         if (currentRestaurant == null) {
             if (ordersTable != null) ordersTable.getItems().clear();
             if (menuTable != null) menuTable.getItems().clear();
@@ -1221,6 +1235,8 @@ public class RestaurantDashboardView {
             if (lblTotalRevenue != null) lblTotalRevenue.setText("BDT 0.00");
             if (lblActiveOrders != null) lblActiveOrders.setText("0");
             if (lblRating != null) lblRating.setText("N/A");
+            refreshRestaurantCombo();
+            refreshRegisteredRestaurantsTable();
             return;
         }
 
