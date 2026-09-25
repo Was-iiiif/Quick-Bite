@@ -1,6 +1,7 @@
 package com.quickbite.controller;
 
 import com.quickbite.api.SmartDeliveryService;
+import com.quickbite.dao.FoodItemDAO;
 import com.quickbite.dao.RestaurantDAO;
 import com.quickbite.dao.ReviewDAO;
 import com.quickbite.model.*;
@@ -24,6 +25,10 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 
 import java.io.File;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.*;
 
 /**
@@ -44,7 +49,11 @@ public class CustomerDashboardView {
     private final MenuService menuService = new MenuService();
     private final OrderService orderService = new OrderService();
     private final ReviewDAO reviewDAO = new ReviewDAO();
+    private final FoodItemDAO foodItemDAO = new FoodItemDAO();
     private final SmartDeliveryService smartDeliveryService = SmartDeliveryService.getInstance();
+
+    // Flat delivery charge — no free-delivery offers
+    private static final double DELIVERY_FEE = 65.00;
 
     // Cart state
     private final List<CartItem> cart = new ArrayList<>();
@@ -90,9 +99,6 @@ public class CustomerDashboardView {
         if (selectedRestaurant == null && !allRests.isEmpty()) {
             selectedRestaurant = allRests.get(0);
         }
-
-        // Pre-populate cart with demo items if empty (matches Figma screenshot 3 items: Truffle Funghi x2, Margherita Classica x1)
-        initDemoCartIfEmpty();
 
         HBox root = new HBox(0);
         root.setStyle("-fx-background-color: #0E0E10;");
@@ -142,15 +148,15 @@ public class CustomerDashboardView {
         Button logoBtn = new Button("⚡");
         logoBtn.setStyle(
                 "-fx-background-color: #FF5722;" +
-                "-fx-text-fill: white;" +
-                "-fx-font-size: 18px;" +
-                "-fx-font-weight: bold;" +
-                "-fx-min-width: 44px;" +
-                "-fx-min-height: 44px;" +
-                "-fx-max-width: 44px;" +
-                "-fx-max-height: 44px;" +
-                "-fx-background-radius: 12px;" +
-                "-fx-cursor: hand;"
+                        "-fx-text-fill: white;" +
+                        "-fx-font-size: 18px;" +
+                        "-fx-font-weight: bold;" +
+                        "-fx-min-width: 44px;" +
+                        "-fx-min-height: 44px;" +
+                        "-fx-max-width: 44px;" +
+                        "-fx-max-height: 44px;" +
+                        "-fx-background-radius: 12px;" +
+                        "-fx-cursor: hand;"
         );
 
         // Nav Items (Home, Explore, Orders, Saved, Profile)
@@ -188,12 +194,12 @@ public class CustomerDashboardView {
         Button btnLogout = new Button("⇥");
         btnLogout.setStyle(
                 "-fx-background-color: #1A1A20;" +
-                "-fx-text-fill: #9CA3AF;" +
-                "-fx-font-size: 16px;" +
-                "-fx-min-width: 38px;" +
-                "-fx-min-height: 38px;" +
-                "-fx-background-radius: 19px;" +
-                "-fx-cursor: hand;"
+                        "-fx-text-fill: #9CA3AF;" +
+                        "-fx-font-size: 16px;" +
+                        "-fx-min-width: 38px;" +
+                        "-fx-min-height: 38px;" +
+                        "-fx-background-radius: 19px;" +
+                        "-fx-cursor: hand;"
         );
         btnLogout.setTooltip(new Tooltip("Logout"));
         btnLogout.setOnAction(e -> {
@@ -206,13 +212,13 @@ public class CustomerDashboardView {
         Label avatar = new Label(customer.getName() != null && !customer.getName().isEmpty() ? customer.getName().substring(0, 1).toUpperCase() : "A");
         avatar.setStyle(
                 "-fx-background-color: #27272A;" +
-                "-fx-text-fill: white;" +
-                "-fx-font-size: 13px;" +
-                "-fx-font-weight: bold;" +
-                "-fx-min-width: 36px;" +
-                "-fx-min-height: 36px;" +
-                "-fx-background-radius: 18px;" +
-                "-fx-alignment: center;"
+                        "-fx-text-fill: white;" +
+                        "-fx-font-size: 13px;" +
+                        "-fx-font-weight: bold;" +
+                        "-fx-min-width: 36px;" +
+                        "-fx-min-height: 36px;" +
+                        "-fx-background-radius: 18px;" +
+                        "-fx-alignment: center;"
         );
         Circle onlineDot = new Circle(4.5, Color.web("#22C55E"));
         StackPane.setAlignment(onlineDot, Pos.BOTTOM_RIGHT);
@@ -303,14 +309,14 @@ public class CustomerDashboardView {
         searchField.setPromptText("🔍  Restaurants, dishes...");
         searchField.setStyle(
                 "-fx-background-color: #18181C;" +
-                "-fx-text-fill: white;" +
-                "-fx-prompt-text-fill: #71717A;" +
-                "-fx-border-color: #27272F;" +
-                "-fx-border-radius: 20px;" +
-                "-fx-background-radius: 20px;" +
-                "-fx-padding: 8px 16px;" +
-                "-fx-pref-width: 250px;" +
-                "-fx-font-size: 12px;"
+                        "-fx-text-fill: white;" +
+                        "-fx-prompt-text-fill: #71717A;" +
+                        "-fx-border-color: #27272F;" +
+                        "-fx-border-radius: 20px;" +
+                        "-fx-background-radius: 20px;" +
+                        "-fx-padding: 8px 16px;" +
+                        "-fx-pref-width: 250px;" +
+                        "-fx-font-size: 12px;"
         );
         searchField.textProperty().addListener((obs, oldV, newV) -> refreshRestaurants());
 
@@ -320,10 +326,10 @@ public class CustomerDashboardView {
         locPill.setCursor(Cursor.HAND);
         locPill.setStyle(
                 "-fx-background-color: #18181C;" +
-                "-fx-border-color: #27272F;" +
-                "-fx-border-radius: 20px;" +
-                "-fx-background-radius: 20px;" +
-                "-fx-padding: 8px 14px;"
+                        "-fx-border-color: #27272F;" +
+                        "-fx-border-radius: 20px;" +
+                        "-fx-background-radius: 20px;" +
+                        "-fx-padding: 8px 14px;"
         );
         String addr = customer.getAddress() != null && !customer.getAddress().isEmpty() ? customer.getAddress() : "W 72nd St, New York";
         if (addr.length() > 20) addr = addr.substring(0, 18) + "...";
@@ -336,12 +342,12 @@ public class CustomerDashboardView {
         Button bellBtn = new Button("🔔");
         bellBtn.setStyle(
                 "-fx-background-color: #18181C;" +
-                "-fx-border-color: #27272F;" +
-                "-fx-border-radius: 20px;" +
-                "-fx-background-radius: 20px;" +
-                "-fx-font-size: 13px;" +
-                "-fx-padding: 7px 11px;" +
-                "-fx-cursor: hand;"
+                        "-fx-border-color: #27272F;" +
+                        "-fx-border-radius: 20px;" +
+                        "-fx-background-radius: 20px;" +
+                        "-fx-font-size: 13px;" +
+                        "-fx-padding: 7px 11px;" +
+                        "-fx-cursor: hand;"
         );
         bellBtn.setOnAction(e -> AlertUtil.showInfo("Notifications", "You have 1 live active order: KFC Bangladesh (#1021) is Out for Delivery! ETA: ~20 min."));
 
@@ -368,36 +374,46 @@ public class CustomerDashboardView {
 
         headerRow.getChildren().addAll(title, sp, viewAll);
 
-        // 3 Cards matching the Figma design
+        // Real orders for this customer, newest first (OrderDAO already sorts DESC by id)
+        List<Order> recentOrders = orderService.getCustomerOrders(customer.getId());
+
         HBox cardsRow = new HBox(14);
-        cardsRow.getChildren().addAll(
-                buildRecentOrderCard("🍗", "KFC Bangladesh", "Hot & Crispy Chicken ×2, Zinger Burger", "BDT 25.50", "Today · 12:34 PM", stage),
-                buildRecentOrderCard("🍗", "KFC Bangladesh", "Twister Wrap ×1, Crispy Tenders ×6", "BDT 13.80", "Yesterday · 7:12 PM", stage),
-                buildRecentOrderCard("🍗", "KFC Bangladesh", "Hot Wings Combo, Fries, Pepsi", "BDT 11.20", "Sep 20 · 6:45 PM", stage)
-        );
+
+        if (recentOrders.isEmpty()) {
+            Label empty = new Label("No orders yet — place your first order below and it'll show up here!");
+            empty.setStyle("-fx-font-size: 12px; -fx-text-fill: #71717A; -fx-padding: 16px 4px;");
+            cardsRow.getChildren().add(empty);
+        } else {
+            int limit = Math.min(3, recentOrders.size());
+            for (int i = 0; i < limit; i++) {
+                cardsRow.getChildren().add(buildRecentOrderCard(recentOrders.get(i), stage));
+            }
+        }
 
         section.getChildren().addAll(headerRow, cardsRow);
         return section;
     }
 
-    private HBox buildRecentOrderCard(String emoji, String restName, String items, String price, String time, Stage stage) {
+    private HBox buildRecentOrderCard(Order order, Stage stage) {
         HBox card = new HBox(12);
         HBox.setHgrow(card, Priority.ALWAYS);
         card.setAlignment(Pos.CENTER_LEFT);
         card.setStyle(
                 "-fx-background-color: #17171C;" +
-                "-fx-border-color: #23232A;" +
-                "-fx-border-radius: 12px;" +
-                "-fx-background-radius: 12px;" +
-                "-fx-padding: 12px 14px;" +
-                "-fx-cursor: hand;"
+                        "-fx-border-color: #23232A;" +
+                        "-fx-border-radius: 12px;" +
+                        "-fx-background-radius: 12px;" +
+                        "-fx-padding: 12px 14px;" +
+                        "-fx-cursor: hand;"
         );
+
+        String restName = order.getRestaurantName() != null ? order.getRestaurantName() : "Restaurant #" + order.getRestaurantId();
 
         // Image / Emoji Icon Box
         StackPane iconBox = new StackPane();
         iconBox.setPrefSize(44, 44);
         iconBox.setStyle("-fx-background-color: #22222A; -fx-background-radius: 10px;");
-        Label iconLbl = new Label(emoji);
+        Label iconLbl = new Label(emojiForRestaurant(restName));
         iconLbl.setStyle("-fx-font-size: 20px;");
         iconBox.getChildren().add(iconLbl);
 
@@ -407,38 +423,111 @@ public class CustomerDashboardView {
         Label nameLbl = new Label(restName);
         nameLbl.setStyle("-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: white;");
 
-        Label itemsLbl = new Label(items);
-        itemsLbl.setStyle("-fx-font-size: 10px; -fx-text-fill: #9CA3AF;");
+        Label itemsLbl = new Label(formatOrderItemsSummary(order));
+        itemsLbl.setStyle("-fx-font-size: 10px; -fx-text-fill: #9CA3AF; -fx-text-overflow: ellipsis;");
         itemsLbl.setWrapText(false);
+        itemsLbl.setMaxWidth(190);
 
         HBox priceTimeRow = new HBox(6);
-        Label priceLbl = new Label(price);
+        Label priceLbl = new Label(String.format("BDT %.2f", order.getTotalAmount()));
         priceLbl.setStyle("-fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: #E4E4E7;");
 
-        Label timeLbl = new Label("· " + time);
+        Label timeLbl = new Label("· " + formatRelativeOrderTime(order.getCreatedAt()));
         timeLbl.setStyle("-fx-font-size: 10px; -fx-text-fill: #71717A;");
         priceTimeRow.getChildren().addAll(priceLbl, timeLbl);
 
         info.getChildren().addAll(nameLbl, itemsLbl, priceTimeRow);
 
-        // Status pill
-        Label deliveredBadge = new Label("✓ Delivered");
-        deliveredBadge.setStyle(
-                "-fx-background-color: #062818;" +
-                "-fx-text-fill: #22C55E;" +
-                "-fx-font-size: 9px;" +
-                "-fx-font-weight: bold;" +
-                "-fx-padding: 4px 8px;" +
-                "-fx-background-radius: 6px;"
-        );
+        // Status pill reflects the order's real lifecycle status
+        Label statusBadge = buildOrderStatusBadge(order.getStatus());
 
-        card.getChildren().addAll(iconBox, info, deliveredBadge);
+        card.getChildren().addAll(iconBox, info, statusBadge);
 
-        card.setOnMouseClicked(e -> {
-            showReorderDialog(stage, restName, items, price);
-        });
+        card.setOnMouseClicked(e -> reorderFromOrder(stage, order));
 
         return card;
+    }
+
+    /** Best-effort emoji for a restaurant based on its name/cuisine keywords. */
+    private String emojiForRestaurant(String name) {
+        if (name == null) return "🍽️";
+        String n = name.toLowerCase();
+        if (n.contains("kfc") || n.contains("chicken")) return "🍗";
+        if (n.contains("pizza")) return "🍕";
+        if (n.contains("sushi") || n.contains("japan")) return "🍣";
+        if (n.contains("burger")) return "🍔";
+        if (n.contains("thai")) return "🍜";
+        if (n.contains("salad")) return "🥗";
+        if (n.contains("dessert") || n.contains("cake") || n.contains("sweet")) return "🍰";
+        return "🍽️";
+    }
+
+    /** Joins an order's line items into a short "Name ×Qty, Name ×Qty" summary string. */
+    private String formatOrderItemsSummary(Order order) {
+        List<OrderItem> items = order.getItems();
+        if (items == null || items.isEmpty()) return "No items";
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < items.size(); i++) {
+            OrderItem oi = items.get(i);
+            if (i > 0) sb.append(", ");
+            sb.append(oi.getFoodName()).append(" ×").append(oi.getQuantity());
+        }
+        String result = sb.toString();
+        return result.length() > 48 ? result.substring(0, 45) + "..." : result;
+    }
+
+    /** Formats the order's "yyyy-MM-dd HH:mm:ss" timestamp as "Today · 12:34 PM" / "Yesterday · ..." / "Sep 20 · ...". */
+    private String formatRelativeOrderTime(String createdAt) {
+        if (createdAt == null || createdAt.isBlank()) return "";
+        try {
+            LocalDateTime dt = LocalDateTime.parse(createdAt, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+            LocalDate today = LocalDate.now();
+            String timePart = dt.format(DateTimeFormatter.ofPattern("h:mm a"));
+            if (dt.toLocalDate().isEqual(today)) {
+                return "Today · " + timePart;
+            } else if (dt.toLocalDate().isEqual(today.minusDays(1))) {
+                return "Yesterday · " + timePart;
+            } else {
+                return dt.format(DateTimeFormatter.ofPattern("MMM d")) + " · " + timePart;
+            }
+        } catch (DateTimeParseException ex) {
+            return createdAt;
+        }
+    }
+
+    /** Builds a colored status pill matching the order's real lifecycle status. */
+    private Label buildOrderStatusBadge(String status) {
+        String text;
+        String bg;
+        String fg;
+        String s = status == null ? "" : status;
+
+        if (Order.STATUS_DELIVERED.equals(s)) {
+            text = "✓ Delivered"; bg = "#062818"; fg = "#22C55E";
+        } else if (Order.STATUS_CANCELLED.equals(s)) {
+            text = "✕ Cancelled"; bg = "#2A1212"; fg = "#EF4444";
+        } else if (Order.STATUS_OUT_FOR_DELIVERY.equals(s)) {
+            text = "🚗 On the way"; bg = "#241A08"; fg = "#F59E0B";
+        } else if (Order.STATUS_PREPARING.equals(s)) {
+            text = "👨‍🍳 Preparing"; bg = "#241A08"; fg = "#F59E0B";
+        } else if (Order.STATUS_READY.equals(s)) {
+            text = "Ready"; bg = "#0B2430"; fg = "#22D3EE";
+        } else if (Order.STATUS_CONFIRMED.equals(s)) {
+            text = "Confirmed"; bg = "#10192E"; fg = "#60A5FA";
+        } else {
+            text = "Placed"; bg = "#1C1C24"; fg = "#9CA3AF";
+        }
+
+        Label badge = new Label(text);
+        badge.setStyle(
+                "-fx-background-color: " + bg + ";" +
+                        "-fx-text-fill: " + fg + ";" +
+                        "-fx-font-size: 9px;" +
+                        "-fx-font-weight: bold;" +
+                        "-fx-padding: 4px 8px;" +
+                        "-fx-background-radius: 6px;"
+        );
+        return badge;
     }
 
     // ── Category Filter Pills ────────────────────────────────────────────────
@@ -474,22 +563,22 @@ public class CustomerDashboardView {
         if (isSelected) {
             pill.setStyle(
                     "-fx-background-color: #FF5722;" +
-                    "-fx-text-fill: white;" +
-                    "-fx-font-size: 12px;" +
-                    "-fx-font-weight: bold;" +
-                    "-fx-padding: 7px 16px;" +
-                    "-fx-background-radius: 20px;"
+                            "-fx-text-fill: white;" +
+                            "-fx-font-size: 12px;" +
+                            "-fx-font-weight: bold;" +
+                            "-fx-padding: 7px 16px;" +
+                            "-fx-background-radius: 20px;"
             );
         } else {
             pill.setStyle(
                     "-fx-background-color: #191920;" +
-                    "-fx-text-fill: #D4D4D8;" +
-                    "-fx-font-size: 12px;" +
-                    "-fx-font-weight: normal;" +
-                    "-fx-padding: 7px 16px;" +
-                    "-fx-border-color: #272730;" +
-                    "-fx-border-radius: 20px;" +
-                    "-fx-background-radius: 20px;"
+                            "-fx-text-fill: #D4D4D8;" +
+                            "-fx-font-size: 12px;" +
+                            "-fx-font-weight: normal;" +
+                            "-fx-padding: 7px 16px;" +
+                            "-fx-border-color: #272730;" +
+                            "-fx-border-radius: 20px;" +
+                            "-fx-background-radius: 20px;"
             );
         }
     }
@@ -500,7 +589,7 @@ public class CustomerDashboardView {
             if (node instanceof Button btn) {
                 String txt = btn.getText();
                 boolean isMatch = (selectedCategory.equalsIgnoreCase("All") && txt.contains("All")) ||
-                                  (!selectedCategory.equalsIgnoreCase("All") && txt.toLowerCase().contains(selectedCategory.toLowerCase()));
+                        (!selectedCategory.equalsIgnoreCase("All") && txt.toLowerCase().contains(selectedCategory.toLowerCase()));
                 styleCategoryPill(btn, isMatch);
             }
         }
@@ -526,27 +615,27 @@ public class CustomerDashboardView {
         Button btnManage = new Button("🏪 Registered Directory");
         btnManage.setStyle(
                 "-fx-background-color: #1E1E26;" +
-                "-fx-text-fill: #FF5722;" +
-                "-fx-border-color: #38241D;" +
-                "-fx-border-radius: 8px;" +
-                "-fx-background-radius: 8px;" +
-                "-fx-font-size: 11px;" +
-                "-fx-font-weight: bold;" +
-                "-fx-padding: 5px 12px;" +
-                "-fx-cursor: hand;"
+                        "-fx-text-fill: #FF5722;" +
+                        "-fx-border-color: #38241D;" +
+                        "-fx-border-radius: 8px;" +
+                        "-fx-background-radius: 8px;" +
+                        "-fx-font-size: 11px;" +
+                        "-fx-font-weight: bold;" +
+                        "-fx-padding: 5px 12px;" +
+                        "-fx-cursor: hand;"
         );
         btnManage.setOnAction(e -> showManageRestaurantsModal(stage));
 
         Button btnFilter = new Button("⚡ Filter");
         btnFilter.setStyle(
                 "-fx-background-color: #18181C;" +
-                "-fx-text-fill: #D4D4D8;" +
-                "-fx-border-color: #272730;" +
-                "-fx-border-radius: 8px;" +
-                "-fx-background-radius: 8px;" +
-                "-fx-font-size: 11px;" +
-                "-fx-padding: 5px 12px;" +
-                "-fx-cursor: hand;"
+                        "-fx-text-fill: #D4D4D8;" +
+                        "-fx-border-color: #272730;" +
+                        "-fx-border-radius: 8px;" +
+                        "-fx-background-radius: 8px;" +
+                        "-fx-font-size: 11px;" +
+                        "-fx-padding: 5px 12px;" +
+                        "-fx-cursor: hand;"
         );
         btnFilter.setOnAction(e -> {
             AlertUtil.showInfo("Filter Options", "Currently sorted by Top Rating & Nearest Delivery Zone.");
@@ -576,13 +665,14 @@ public class CustomerDashboardView {
 
         // Map mockup details
         Map<String, String[]> meta = new LinkedHashMap<>();
-        meta.put("KFC Bangladesh", new String[]{"TOP PICK", "20% OFF", "Crispy Fried Chicken & Burgers", "★ 5.0 (2.8k)", "20–30 min", "Free", "#E4002B"});
-        meta.put("Ember & Ash", new String[]{"POPULAR", "30% OFF", "Wood-fired Pizza", "★ 4.9 (1.2k)", "22–32 min", "Free", "#E25822"});
-        meta.put("Shogun Omakase", new String[]{"NEW", "", "Premium Sushi", "★ 4.8 (876)", "35–45 min", "BDT 1.99", "#3B82F6"});
-        meta.put("The Patty Lab", new String[]{"", "", "Craft Burgers", "★ 4.7 (2.1k)", "18–28 min", "Free", "#EAB308"});
-        meta.put("Lemongrass House", new String[]{"", "", "Authentic Thai", "★ 4.6 (543)", "28–38 min", "BDT 0.99", "#10B981"});
-        meta.put("Field & Fork", new String[]{"HEALTHY", "", "Garden Salads", "★ 4.5 (389)", "15–25 min", "Free", "#14B8A6"});
-        meta.put("Petite Maison", new String[]{"TOP RATED", "", "French Desserts", "★ 4.9 (718)", "30–40 min", "BDT 2.49", "#EC4899"});
+        String deliveryFeeStr = String.format("BDT %.2f", DELIVERY_FEE);
+        meta.put("KFC Bangladesh", new String[]{"TOP PICK", "20% OFF", "Crispy Fried Chicken & Burgers", "★ 5.0 (2.8k)", "20–30 min", deliveryFeeStr, "#E4002B"});
+        meta.put("Ember & Ash", new String[]{"POPULAR", "30% OFF", "Wood-fired Pizza", "★ 4.9 (1.2k)", "22–32 min", deliveryFeeStr, "#E25822"});
+        meta.put("Shogun Omakase", new String[]{"NEW", "", "Premium Sushi", "★ 4.8 (876)", "35–45 min", deliveryFeeStr, "#3B82F6"});
+        meta.put("The Patty Lab", new String[]{"", "", "Craft Burgers", "★ 4.7 (2.1k)", "18–28 min", deliveryFeeStr, "#EAB308"});
+        meta.put("Lemongrass House", new String[]{"", "", "Authentic Thai", "★ 4.6 (543)", "28–38 min", deliveryFeeStr, "#10B981"});
+        meta.put("Field & Fork", new String[]{"HEALTHY", "", "Garden Salads", "★ 4.5 (389)", "15–25 min", deliveryFeeStr, "#14B8A6"});
+        meta.put("Petite Maison", new String[]{"TOP RATED", "", "French Desserts", "★ 4.9 (718)", "30–40 min", deliveryFeeStr, "#EC4899"});
 
         for (Restaurant r : allRests) {
             String[] m = meta.get(r.getName());
@@ -648,10 +738,10 @@ public class CustomerDashboardView {
         card.setPrefWidth(265);
         card.setStyle(
                 "-fx-background-color: #17171B;" +
-                "-fx-border-color: #24242C;" +
-                "-fx-border-radius: 14px;" +
-                "-fx-background-radius: 14px;" +
-                "-fx-cursor: hand;"
+                        "-fx-border-color: #24242C;" +
+                        "-fx-border-radius: 14px;" +
+                        "-fx-background-radius: 14px;" +
+                        "-fx-cursor: hand;"
         );
 
         // Hover effect
@@ -720,11 +810,11 @@ public class CustomerDashboardView {
             Label tagLbl = new Label(leftTag);
             tagLbl.setStyle(
                     "-fx-background-color: rgba(255, 87, 34, 0.9);" +
-                    "-fx-text-fill: white;" +
-                    "-fx-font-size: 9px;" +
-                    "-fx-font-weight: bold;" +
-                    "-fx-padding: 3px 7px;" +
-                    "-fx-background-radius: 6px;"
+                            "-fx-text-fill: white;" +
+                            "-fx-font-size: 9px;" +
+                            "-fx-font-weight: bold;" +
+                            "-fx-padding: 3px 7px;" +
+                            "-fx-background-radius: 6px;"
             );
             badgeBar.getChildren().add(tagLbl);
         }
@@ -737,11 +827,11 @@ public class CustomerDashboardView {
             Label rightTagLbl = new Label(rightTag);
             rightTagLbl.setStyle(
                     "-fx-background-color: rgba(220, 38, 38, 0.9);" +
-                    "-fx-text-fill: white;" +
-                    "-fx-font-size: 9px;" +
-                    "-fx-font-weight: bold;" +
-                    "-fx-padding: 3px 7px;" +
-                    "-fx-background-radius: 6px;"
+                            "-fx-text-fill: white;" +
+                            "-fx-font-size: 9px;" +
+                            "-fx-font-weight: bold;" +
+                            "-fx-padding: 3px 7px;" +
+                            "-fx-background-radius: 6px;"
             );
             badgeBar.getChildren().add(rightTagLbl);
         }
@@ -781,9 +871,9 @@ public class CustomerDashboardView {
         Label timeLbl = new Label("🕒 " + timeStr);
         timeLbl.setStyle("-fx-font-size: 10px; -fx-text-fill: #71717A;");
 
-        String feeStr = m != null ? m[5] : "Free";
-        Label feeLbl = new Label(feeStr.equalsIgnoreCase("Free") ? "✓ Free delivery" : feeStr + " delivery");
-        feeLbl.setStyle("-fx-font-size: 10px; -fx-font-weight: bold; -fx-text-fill: " + (feeStr.equalsIgnoreCase("Free") ? "#22C55E;" : "#9CA3AF;"));
+        String feeStr = m != null ? m[5] : String.format("BDT %.2f", DELIVERY_FEE);
+        Label feeLbl = new Label(feeStr + " delivery");
+        feeLbl.setStyle("-fx-font-size: 10px; -fx-font-weight: bold; -fx-text-fill: #9CA3AF;");
 
         footerRow.getChildren().addAll(timeLbl, feeLbl);
 
@@ -1009,8 +1099,8 @@ public class CustomerDashboardView {
         subtotalRow.getChildren().addAll(styledLabel("Subtotal"), s1, lblSubtotal);
 
         HBox deliveryRow = new HBox();
-        lblDeliveryFee = new Label("Free");
-        lblDeliveryFee.setStyle("-fx-text-fill: #22C55E; -fx-font-weight: bold; -fx-font-size: 12px;");
+        lblDeliveryFee = new Label(String.format("BDT %.2f", DELIVERY_FEE));
+        lblDeliveryFee.setStyle("-fx-text-fill: #E4E4E7; -fx-font-size: 12px;");
         Region s2 = new Region(); HBox.setHgrow(s2, Priority.ALWAYS);
         deliveryRow.getChildren().addAll(styledLabel("Delivery"), s2, lblDeliveryFee);
 
@@ -1041,13 +1131,13 @@ public class CustomerDashboardView {
         txtPromo.setPromptText("Promo code");
         txtPromo.setStyle(
                 "-fx-background-color: #17171C;" +
-                "-fx-text-fill: white;" +
-                "-fx-prompt-text-fill: #52525B;" +
-                "-fx-border-color: #24242C;" +
-                "-fx-border-radius: 6px;" +
-                "-fx-background-radius: 6px;" +
-                "-fx-padding: 7px 10px;" +
-                "-fx-font-size: 11px;"
+                        "-fx-text-fill: white;" +
+                        "-fx-prompt-text-fill: #52525B;" +
+                        "-fx-border-color: #24242C;" +
+                        "-fx-border-radius: 6px;" +
+                        "-fx-background-radius: 6px;" +
+                        "-fx-padding: 7px 10px;" +
+                        "-fx-font-size: 11px;"
         );
         HBox.setHgrow(txtPromo, Priority.ALWAYS);
 
@@ -1072,12 +1162,12 @@ public class CustomerDashboardView {
         btnPlaceOrder.setMaxWidth(Double.MAX_VALUE);
         btnPlaceOrder.setStyle(
                 "-fx-background-color: #FF5722;" +
-                "-fx-text-fill: white;" +
-                "-fx-font-size: 14px;" +
-                "-fx-font-weight: bold;" +
-                "-fx-padding: 13px;" +
-                "-fx-background-radius: 10px;" +
-                "-fx-cursor: hand;"
+                        "-fx-text-fill: white;" +
+                        "-fx-font-size: 14px;" +
+                        "-fx-font-weight: bold;" +
+                        "-fx-padding: 13px;" +
+                        "-fx-background-radius: 10px;" +
+                        "-fx-cursor: hand;"
         );
         btnPlaceOrder.setOnAction(e -> handleCheckout(stage));
 
@@ -1090,28 +1180,6 @@ public class CustomerDashboardView {
         Label lbl = new Label(text);
         lbl.setStyle("-fx-font-size: 11px; -fx-text-fill: #9CA3AF;");
         return lbl;
-    }
-
-    private void initDemoCartIfEmpty() {
-        if (!cart.isEmpty()) return;
-
-        // Populate cart with KFC Bangladesh items
-        List<FoodItem> items = menuService.getFoodItems(selectedRestaurant != null ? selectedRestaurant.getId() : 1);
-        FoodItem chicken = null;
-        FoodItem burger = null;
-
-        for (FoodItem fi : items) {
-            if (fi.getName().toLowerCase().contains("crispy") || fi.getName().toLowerCase().contains("chicken")) chicken = fi;
-            else if (fi.getName().toLowerCase().contains("zinger") || fi.getName().toLowerCase().contains("burger")) burger = fi;
-        }
-
-        if (chicken != null && burger != null) {
-            cart.add(new CartItem(chicken, 2));
-            cart.add(new CartItem(burger, 1));
-        } else if (!items.isEmpty()) {
-            cart.add(new CartItem(items.get(0), 2));
-            if (items.size() > 1) cart.add(new CartItem(items.get(1), 1));
-        }
     }
 
     private void refreshCartDisplay() {
@@ -1170,13 +1238,13 @@ public class CustomerDashboardView {
             cartItemsBox.getChildren().add(itemRow);
         }
 
-        double delivery = cart.isEmpty() ? 0.0 : 0.00; // Free delivery
+        double delivery = cart.isEmpty() ? 0.0 : DELIVERY_FEE; // Flat delivery charge, no free-delivery offers
         double service = cart.isEmpty() ? 0.0 : 2.50;
         double total = Math.max(0.0, subtotal + delivery + service - promoDiscount);
 
         if (lblCartCountBadge != null) lblCartCountBadge.setText(totalItems + " items");
         if (lblSubtotal != null) lblSubtotal.setText(String.format("BDT %.2f", subtotal));
-        if (lblDeliveryFee != null) lblDeliveryFee.setText(delivery == 0.0 ? "Free" : String.format("BDT %.2f", delivery));
+        if (lblDeliveryFee != null) lblDeliveryFee.setText(String.format("BDT %.2f", delivery));
         if (lblServiceFee != null) lblServiceFee.setText(String.format("BDT %.2f", service));
         if (lblTotal != null) lblTotal.setText(String.format("BDT %.2f", total));
         if (btnPlaceOrder != null) btnPlaceOrder.setText(String.format("Place order · BDT %.2f", total));
@@ -1247,9 +1315,9 @@ public class CustomerDashboardView {
         card.setPrefWidth(225);
         card.setStyle(
                 "-fx-background-color: #17171C;" +
-                "-fx-border-color: #25252E;" +
-                "-fx-border-radius: 10px;" +
-                "-fx-background-radius: 10px;"
+                        "-fx-border-color: #25252E;" +
+                        "-fx-border-radius: 10px;" +
+                        "-fx-background-radius: 10px;"
         );
 
         // Food Image Banner
@@ -1361,15 +1429,20 @@ public class CustomerDashboardView {
     }
 
     private void addToCart(FoodItem item) {
+        addToCartSilently(item, 1);
+        refreshCartDisplay();
+    }
+
+    /** Adds (or bumps the quantity of) an item without triggering a UI refresh — for batch operations like reordering. */
+    private void addToCartSilently(FoodItem item, int quantity) {
+        if (item == null || quantity <= 0) return;
         for (CartItem ci : cart) {
             if (ci.getFoodItem().getId() == item.getId()) {
-                ci.incrementQuantity();
-                refreshCartDisplay();
+                ci.setQuantity(ci.getQuantity() + quantity);
                 return;
             }
         }
-        cart.add(new CartItem(item, 1));
-        refreshCartDisplay();
+        cart.add(new CartItem(item, quantity));
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -1405,9 +1478,9 @@ public class CustomerDashboardView {
         paymentCombo.setStyle("-fx-background-color: #1D1D24; -fx-border-color: #2F2F3B;");
 
         double subtotal = cart.stream().mapToDouble(CartItem::getSubtotal).sum();
-        double total = Math.max(0.0, subtotal + 2.50 - promoDiscount);
+        double total = Math.max(0.0, subtotal + DELIVERY_FEE + 2.50 - promoDiscount);
 
-        Label totalDue = new Label(String.format("Total Due: BDT %.2f (Free delivery + BDT 2.50 service fee)", total));
+        Label totalDue = new Label(String.format("Total Due: BDT %.2f (BDT %.2f delivery + BDT 2.50 service fee)", total, DELIVERY_FEE));
         totalDue.setStyle("-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #FF5722;");
 
         Button btnConfirm = new Button("Confirm & Pay · " + String.format("BDT %.2f", total));
@@ -1423,7 +1496,7 @@ public class CustomerDashboardView {
                         cart,
                         txtAddress.getText(),
                         paymentCombo.getValue(),
-                        0.00,
+                        DELIVERY_FEE,
                         true
                 );
 
@@ -1685,8 +1758,46 @@ public class CustomerDashboardView {
         dialog.show();
     }
 
-    private void showReorderDialog(Stage stage, String restName, String items, String price) {
-        AlertUtil.showInfo("Reorder Quick Action", "Re-ordering from " + restName + ":\n" + items + " (" + price + ")\nItems loaded into your current cart!");
+    /** Clicking a Recent Orders card re-adds that order's real line items into the current cart. */
+    private void reorderFromOrder(Stage stage, Order order) {
+        List<OrderItem> items = order.getItems();
+        if (items == null || items.isEmpty()) {
+            AlertUtil.showWarning("No Items", "This order has no items to reorder.");
+            return;
+        }
+
+        int addedCount = 0;
+        int skippedCount = 0;
+        for (OrderItem oi : items) {
+            FoodItem fi = foodItemDAO.getById(oi.getFoodId());
+            if (fi != null) {
+                addToCartSilently(fi, oi.getQuantity());
+                addedCount++;
+            } else {
+                skippedCount++;
+            }
+        }
+
+        if (addedCount == 0) {
+            AlertUtil.showWarning("Unavailable", "None of the items from this order are available anymore.");
+            return;
+        }
+
+        // Keep the cart's "source restaurant" label consistent with what was just added
+        Restaurant r = restaurantDAO.getById(order.getRestaurantId());
+        if (r != null) {
+            selectedRestaurant = r;
+        }
+        String restName = order.getRestaurantName() != null ? order.getRestaurantName() : "Restaurant #" + order.getRestaurantId();
+        if (lblCartSource != null) {
+            lblCartSource.setText("From " + restName);
+        }
+
+        refreshCartDisplay();
+
+        String msg = "Items from Order #" + order.getId() + " were added to your cart!" +
+                (skippedCount > 0 ? " (" + skippedCount + " item(s) no longer available)" : "");
+        AlertUtil.showInfo("Added to Cart", msg);
     }
 
     private void showExploreDishesModal(Stage stage) {
@@ -1985,15 +2096,14 @@ public class CustomerDashboardView {
     private void styleDarkField(TextField tf) {
         tf.setStyle(
                 "-fx-background-color: #1D1D24;" +
-                "-fx-text-fill: white;" +
-                "-fx-prompt-text-fill: #52525B;" +
-                "-fx-border-color: #2F2F3B;" +
-                "-fx-border-radius: 6px;" +
-                "-fx-background-radius: 6px;" +
-                "-fx-padding: 8px 10px;" +
-                "-fx-font-size: 12px;"
+                        "-fx-text-fill: white;" +
+                        "-fx-prompt-text-fill: #52525B;" +
+                        "-fx-border-color: #2F2F3B;" +
+                        "-fx-border-radius: 6px;" +
+                        "-fx-background-radius: 6px;" +
+                        "-fx-padding: 8px 10px;" +
+                        "-fx-font-size: 12px;"
         );
         tf.setMaxWidth(Double.MAX_VALUE);
     }
 }
-
