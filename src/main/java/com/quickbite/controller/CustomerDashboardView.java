@@ -299,21 +299,42 @@ public class CustomerDashboardView {
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        // Search Field
+        // Search Field + Search Button
         searchField = new TextField();
-        searchField.setPromptText("🔍  Restaurants, dishes...");
+        searchField.setPromptText("Restaurants, dishes...");
         searchField.setStyle(
                 "-fx-background-color: #18181C;" +
                         "-fx-text-fill: white;" +
                         "-fx-prompt-text-fill: #71717A;" +
                         "-fx-border-color: #27272F;" +
-                        "-fx-border-radius: 20px;" +
-                        "-fx-background-radius: 20px;" +
+                        "-fx-border-radius: 20px 0 0 20px;" +
+                        "-fx-background-radius: 20px 0 0 20px;" +
                         "-fx-padding: 8px 16px;" +
-                        "-fx-pref-width: 250px;" +
+                        "-fx-pref-width: 230px;" +
                         "-fx-font-size: 12px;"
         );
+        // Live filtering as the user types...
         searchField.textProperty().addListener((obs, oldV, newV) -> refreshRestaurants());
+        // ...and pressing Enter in the field also explicitly runs the search.
+        searchField.setOnAction(e -> refreshRestaurants());
+
+        Button btnSearch = new Button("🔍");
+        btnSearch.setCursor(Cursor.HAND);
+        btnSearch.setStyle(
+                "-fx-background-color: #FF5722;" +
+                        "-fx-text-fill: white;" +
+                        "-fx-font-size: 13px;" +
+                        "-fx-border-color: #27272F;" +
+                        "-fx-border-radius: 0 20px 20px 0;" +
+                        "-fx-background-radius: 0 20px 20px 0;" +
+                        "-fx-padding: 8px 14px;" +
+                        "-fx-cursor: hand;"
+        );
+        btnSearch.setOnAction(e -> refreshRestaurants());
+
+        HBox searchBox = new HBox();
+        searchBox.setAlignment(Pos.CENTER_LEFT);
+        searchBox.getChildren().addAll(searchField, btnSearch);
 
         // Location Pill
         HBox locPill = new HBox(6);
@@ -332,7 +353,7 @@ public class CustomerDashboardView {
         locText.setStyle("-fx-font-size: 12px; -fx-text-fill: #E4E4E7;");
         locPill.getChildren().add(locText);
         locPill.setOnMouseClicked(e -> showAddressChangeDialog());
-        topBar.getChildren().addAll(greetBox, spacer, searchField, locPill);
+        topBar.getChildren().addAll(greetBox, spacer, searchBox, locPill);
         return topBar;
     }
 
@@ -655,41 +676,49 @@ public class CustomerDashboardView {
         Map<String, String[]> meta = new LinkedHashMap<>();
         String deliveryFeeStr = String.format("BDT %.2f", DELIVERY_FEE);
         meta.put("KFC Bangladesh", new String[]{"TOP PICK", "20% OFF", "Crispy Fried Chicken & Burgers", "★ 5.0 (2.8k)", "20–30 min", deliveryFeeStr, "#E4002B"});
-        meta.put("Ember & Ash", new String[]{"POPULAR", "30% OFF", "Wood-fired Pizza", "★ 4.9 (1.2k)", "22–32 min", deliveryFeeStr, "#E25822"});
-        meta.put("Shogun Omakase", new String[]{"NEW", "", "Premium Sushi", "★ 4.8 (876)", "35–45 min", deliveryFeeStr, "#3B82F6"});
-        meta.put("The Patty Lab", new String[]{"", "", "Craft Burgers", "★ 4.7 (2.1k)", "18–28 min", deliveryFeeStr, "#EAB308"});
-        meta.put("Lemongrass House", new String[]{"", "", "Authentic Thai", "★ 4.6 (543)", "28–38 min", deliveryFeeStr, "#10B981"});
-        meta.put("Field & Fork", new String[]{"HEALTHY", "", "Garden Salads", "★ 4.5 (389)", "15–25 min", deliveryFeeStr, "#14B8A6"});
-        meta.put("Petite Maison", new String[]{"TOP RATED", "", "French Desserts", "★ 4.9 (718)", "30–40 min", deliveryFeeStr, "#EC4899"});
 
         for (Restaurant r : allRests) {
             String[] m = meta.get(r.getName());
             String cuisine = m != null ? m[2] : r.getDescription();
+            String rName = r.getName() != null ? r.getName() : "";
+
+            // Fetch this restaurant's menu once and reuse it for both filters below,
+            // instead of opening a fresh DB connection twice per restaurant per keystroke.
+            List<FoodItem> items;
+            try {
+                items = menuService.getFoodItems(r.getId());
+            } catch (Exception ex) {
+                items = Collections.emptyList();
+            }
 
             // Filter by category
             if (!"All".equalsIgnoreCase(selectedCategory)) {
                 boolean matchesCategory = false;
                 if (cuisine != null && cuisine.toLowerCase().contains(selectedCategory.toLowerCase()))
                     matchesCategory = true;
-                if (r.getName().toLowerCase().contains(selectedCategory.toLowerCase())) matchesCategory = true;
-                // Check if any menu items match
-                List<FoodItem> items = menuService.getFoodItems(r.getId());
-                for (FoodItem fi : items) {
-                    if (fi.getCategory().equalsIgnoreCase(selectedCategory)) {
-                        matchesCategory = true;
-                        break;
+                if (rName.toLowerCase().contains(selectedCategory.toLowerCase())) matchesCategory = true;
+                if (!matchesCategory) {
+                    for (FoodItem fi : items) {
+                        if (selectedCategory.equalsIgnoreCase(fi.getCategory())) {
+                            matchesCategory = true;
+                            break;
+                        }
                     }
                 }
                 if (!matchesCategory) continue;
             }
 
-            // Filter by search query
+            // Filter by search query — matches restaurant name, cuisine, or any dish's name/description.
+            // Every field is null-checked so one item with a blank description can't quietly break the search.
             if (!query.isEmpty()) {
-                boolean matchesSearch = r.getName().toLowerCase().contains(query) || (cuisine != null && cuisine.toLowerCase().contains(query));
+                boolean matchesSearch = rName.toLowerCase().contains(query)
+                        || (cuisine != null && cuisine.toLowerCase().contains(query));
                 if (!matchesSearch) {
-                    List<FoodItem> items = menuService.getFoodItems(r.getId());
                     for (FoodItem fi : items) {
-                        if (fi.getName().toLowerCase().contains(query) || fi.getDescription().toLowerCase().contains(query)) {
+                        String fiName = fi.getName();
+                        String fiDesc = fi.getDescription();
+                        if ((fiName != null && fiName.toLowerCase().contains(query))
+                                || (fiDesc != null && fiDesc.toLowerCase().contains(query))) {
                             matchesSearch = true;
                             break;
                         }
@@ -707,11 +736,25 @@ public class CustomerDashboardView {
             emptyBox.setAlignment(Pos.CENTER);
             emptyBox.setPadding(new Insets(30, 20, 30, 20));
             emptyBox.setPrefWidth(550);
-            Label emptyIcon = new Label("🏪");
+            Label emptyIcon = new Label(query.isEmpty() ? "🏪" : "🔍");
             emptyIcon.setStyle("-fx-font-size: 38px;");
-            Label emptyTitle = new Label("No registered partner restaurants found.");
+
+            String emptyTitleText;
+            String emptySubText;
+            if (!query.isEmpty()) {
+                emptyTitleText = "No results for \"" + searchField.getText().trim() + "\"";
+                emptySubText = "Try a different restaurant, cuisine, or dish name.";
+            } else if (!"All".equalsIgnoreCase(selectedCategory)) {
+                emptyTitleText = "No restaurants in \"" + selectedCategory + "\" right now.";
+                emptySubText = "Try a different category or clear the filter.";
+            } else {
+                emptyTitleText = "No registered partner restaurants found.";
+                emptySubText = "Only restaurants registered in the Restaurant Admin Dashboard are listed here.";
+            }
+
+            Label emptyTitle = new Label(emptyTitleText);
             emptyTitle.setStyle("-fx-text-fill: #E4E4E7; -fx-font-size: 14px; -fx-font-weight: bold;");
-            Label emptySub = new Label("Only restaurants registered in the Restaurant Admin Dashboard are listed here.");
+            Label emptySub = new Label(emptySubText);
             emptySub.setStyle("-fx-text-fill: #71717A; -fx-font-size: 12px;");
             emptyBox.getChildren().addAll(emptyIcon, emptyTitle, emptySub);
             restaurantGrid.getChildren().add(emptyBox);
@@ -1796,4 +1839,3 @@ public class CustomerDashboardView {
         });
     }
 }
-
