@@ -17,13 +17,18 @@ import javafx.stage.Stage;
  * Left panel: branding, stats, testimonial.
  * Right panel: role-selector cards, sign-in form, social login buttons.
  * Demonstrates OOP polymorphism: user.showDashboard() routes to the correct dashboard subclass.
+ *
+ * Role enforcement: the person must select the role card matching their account
+ * (Customer / Restaurant / Rider) before signing in — AuthService.login(email, password, expectedRole)
+ * rejects the attempt if the account's actual role doesn't match the selected card.
  */
 public class LoginView {
 
     private final AuthService authService = new AuthService();
 
-    // Tracks which role card is currently selected
+    // Tracks which role card is currently selected (display label + internal role key)
     private String selectedRole = "Customer";
+    private String selectedRoleKey = "CUSTOMER";
 
     // ─────────────────────────────────────────────────────────────────────────
     // Entry point
@@ -235,6 +240,7 @@ public class LoginView {
 
             card.setOnMouseClicked(e -> {
                 selectedRole = roles[idx];
+                selectedRoleKey = roleKeys[idx];
                 for (int j = 0; j < 3; j++) {
                     applyRoleCardStyle(roleCards[j], j == idx);
                 }
@@ -307,7 +313,13 @@ public class LoginView {
 
         btnSignIn.setOnAction(e -> {
             try {
-                User user = authService.login(txtEmail.getText().trim(), txtPassword.getText());
+                // Role-checked login: fails if the account's real role doesn't
+                // match the currently selected role card (selectedRoleKey).
+                User user = authService.login(
+                        txtEmail.getText().trim(),
+                        txtPassword.getText(),
+                        selectedRoleKey
+                );
                 // OOP Polymorphism: routes to Customer / RestaurantAdmin / DeliveryStaff dashboard
                 user.showDashboard(stage);
             } catch (Exception ex) {
