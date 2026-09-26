@@ -50,7 +50,7 @@ public class AuthService {
             // since this login attempt is being rejected.
             SessionContext.logout();
             throw new IllegalArgumentException(
-                    "Account Credentials are incorrect. Please try again."
+                    "User credentials are incorrect. Please try again."
             );
         }
 
@@ -64,8 +64,8 @@ public class AuthService {
         if (email == null || !email.contains("@") || !email.contains(".")) {
             throw new IllegalArgumentException("Please provide a valid email address.");
         }
-        if (password == null || password.length() < 7) {
-            throw new IllegalArgumentException("Password must be at least 7 characters.");
+        if (password == null || password.length() < 4) {
+            throw new IllegalArgumentException("Password must be at least 4 characters.");
         }
         if (phone == null || phone.trim().isEmpty()) {
             throw new IllegalArgumentException("Phone number is required.");
@@ -99,6 +99,7 @@ public class AuthService {
     public void logout() {
         SessionContext.logout();
     }
+
 
 
 }
