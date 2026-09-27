@@ -3,27 +3,41 @@ package com.quickbite.service;
 import com.quickbite.dao.FoodItemDAO;
 import com.quickbite.model.FoodItem;
 import com.quickbite.util.JsonUtil;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
 
 /**
- * Service managing food items, menu CRUD operations, and JSON import/export.
+ * Service managing food items, menu CRUD operations,
+ * and JSON import/export.
  */
 public class MenuService {
-    private final FoodItemDAO foodItemDAO = new FoodItemDAO();
+
+    private final FoodItemDAO foodItemDAO =
+            new FoodItemDAO();
 
     public List<FoodItem> getFoodItems(int restaurantId) {
         return foodItemDAO.getByRestaurantId(restaurantId);
     }
 
     public boolean addFoodItem(FoodItem item) {
-        if (item.getName() == null || item.getName().trim().isEmpty()) {
-            throw new IllegalArgumentException("Item name cannot be empty.");
+
+        if (item.getName() == null
+                || item.getName().trim().isEmpty()) {
+
+            throw new IllegalArgumentException(
+                    "Item name cannot be empty."
+            );
         }
+
         if (item.getPrice() < 0) {
-            throw new IllegalArgumentException("Item price must be positive.");
+
+            throw new IllegalArgumentException(
+                    "Item price must be positive."
+            );
         }
+
         return foodItemDAO.create(item);
     }
 
@@ -35,38 +49,76 @@ public class MenuService {
         return foodItemDAO.delete(id);
     }
 
-    public boolean toggleAvailability(int id, boolean available) {
-        return foodItemDAO.toggleAvailability(id, available);
+    public boolean toggleAvailability(
+            int id,
+            boolean available
+    ) {
+
+        return foodItemDAO.toggleAvailability(
+                id,
+                available
+        );
     }
 
-    public List<String> getCategories(int restaurantId) {
-        return foodItemDAO.getCategories(restaurantId);
+    public List<String> getCategories(
+            int restaurantId
+    ) {
+
+        return foodItemDAO.getCategories(
+                restaurantId
+        );
     }
 
     /**
      * Exports a restaurant's menu to a JSON file.
+     *
+     * Jackson serialization is handled through JsonUtil.
      */
-    public void exportMenuToJson(int restaurantId, File file) throws IOException {
-        List<FoodItem> items = foodItemDAO.getByRestaurantId(restaurantId);
-        String json = JsonUtil.toJson(items);
-        JsonUtil.saveToFile(json, file);
+    public void exportMenuToJson(
+            int restaurantId,
+            File file
+    ) throws IOException {
+
+        List<FoodItem> items =
+                foodItemDAO.getByRestaurantId(
+                        restaurantId
+                );
+
+        JsonUtil.writeToFile(
+                items,
+                file
+        );
     }
 
     /**
      * Imports food items from a JSON file into SQLite.
      *
-     * @return Number of imported items
+     * @return Number of successfully imported items
      */
-    public int importMenuFromJson(int restaurantId, File file) throws IOException {
-        String json = JsonUtil.readFromFile(file);
-        List<FoodItem> importedItems = JsonUtil.parseFoodItemList(json);
+    public int importMenuFromJson(
+            int restaurantId,
+            File file
+    ) throws IOException {
+
+        List<FoodItem> importedItems =
+                JsonUtil.readFromFile(
+                        file,
+                        new com.fasterxml.jackson.core.type.TypeReference<List<FoodItem>>() {}
+                );
+
         int successCount = 0;
+
         for (FoodItem item : importedItems) {
-            item.setRestaurantId(restaurantId);
+
+            item.setRestaurantId(
+                    restaurantId
+            );
+
             if (foodItemDAO.create(item)) {
                 successCount++;
             }
         }
+
         return successCount;
     }
 }
