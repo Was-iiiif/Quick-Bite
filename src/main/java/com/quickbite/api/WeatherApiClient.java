@@ -13,7 +13,8 @@ import java.time.Duration;
  * Uses public Open-Meteo REST API (free, open, no API key required).
  */
 public class WeatherApiClient {
-    private static final String API_URL = "https://api.open-meteo.com/v1/forecast?latitude=40.7128&longitude=-74.0060&current=temperature_2m,weather_code,wind_speed_10m";
+    private static final String API_URL = 
+    "https://api.open-meteo.com/v1/forecast?latitude=22.8098&longitude=89.5644&current=temperature_2m,weather_code,wind_speed_10m";
 
     private final HttpClient httpClient;
     private final ConcurrencyMonitorService monitor = ConcurrencyMonitorService.getInstance();
