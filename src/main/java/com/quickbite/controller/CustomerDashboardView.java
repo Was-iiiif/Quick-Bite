@@ -1332,11 +1332,20 @@ public class CustomerDashboardView {
 
     /**
      * Adds (or bumps the quantity of) an item without triggering a UI refresh — for batch operations like reordering.
+     *
+     * IMPORTANT: merging is keyed on food ID *and* unit price. A discounted
+     * "Dish of the Day" copy of a FoodItem carries the same ID as the regular
+     * menu item but a different (lower) unitPrice — if we merged purely by ID,
+     * adding the discounted dish while a full-price copy is already in the cart
+     * (or vice-versa) would silently fold the discounted line into the full-price
+     * one and the customer would be billed the wrong amount. Keeping price in the
+     * merge key keeps discounted and regular lines separate in the cart.
      */
     private void addToCartSilently(FoodItem item, int quantity) {
         if (item == null || quantity <= 0) return;
         for (CartItem ci : cart) {
-            if (ci.getFoodItem().getId() == item.getId()) {
+            if (ci.getFoodItem().getId() == item.getId()
+                    && Double.compare(ci.getFoodItem().getPrice(), item.getPrice()) == 0) {
                 ci.setQuantity(ci.getQuantity() + quantity);
                 return;
             }
@@ -1942,9 +1951,22 @@ public class CustomerDashboardView {
     }
 
     /**
-     * Adds the Dish of the Day's exact {@link FoodItem} to the cart, switching the
-     * cart's "source restaurant" to match — the same convention already used by
-     * {@link #reorderFromOrder(Stage, Order)}.
+     * Adds the Dish of the Day to the cart at TODAY'S DISCOUNTED PRICE, switching
+     * the cart's "source restaurant" to match — the same convention already used
+     * by {@link #reorderFromOrder(Stage, Order)}.
+     *
+     * BUGFIX: previously this passed {@code dod.getFoodItem()} straight through to
+     * {@link #addToCartSilently(FoodItem, int)}. That FoodItem is the DAO-loaded,
+     * shared menu instance whose {@code price} field is still the regular price —
+     * {@link com.quickbite.model.DishOfTheDay#getDiscountedPrice()} is a value
+     * computed separately by {@link DishOfTheDayService} and was never applied to
+     * it. As a result the popup displayed the discounted price, but the cart (and
+     * therefore the order total) silently billed the customer at full price.
+     *
+     * The fix builds a distinct {@link FoodItem} copy carrying the discounted
+     * price and adds THAT to the cart. It is a copy (not a mutation of the
+     * original) so the regular menu listing for this dish elsewhere in the app
+     * keeps showing its normal, undiscounted price.
      */
     private void addDishOfTheDayToCart(DishOfTheDay dod) {
         Restaurant r = restaurantDAO.getById(dod.getRestaurantId());
@@ -1954,7 +1976,20 @@ public class CustomerDashboardView {
                 lblCartSource.setText("From " + r.getName());
             }
         }
-        addToCartSilently(dod.getFoodItem(), 1);
+
+        FoodItem original = dod.getFoodItem();
+        FoodItem discountedCopy = new FoodItem(
+                original.getId(),
+                original.getRestaurantId(),
+                original.getName(),
+                original.getDescription(),
+                original.getCategory(),
+                dod.getDiscountedPrice(),   // <-- the actual fix: bill at the discounted price
+                original.isAvailable(),
+                original.getImageUrl()
+        );
+
+        addToCartSilently(discountedCopy, 1);
         refreshCartDisplay();
     }
 
