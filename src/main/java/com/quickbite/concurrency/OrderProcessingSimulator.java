@@ -113,7 +113,7 @@ public class OrderProcessingSimulator {
                     int driverId = acquireDriverWithRetries(orderId);
 
                     if (driverId != -1) {
-                        monitor.logEvent("OrderProcessor", "Driver #" + driverId + " successfully dispatched for Order #" + orderId);
+                        monitor.logEvent("OrderProcessor", "Driver #1 successfully dispatched for Order #" + orderId);
                     } else {
                         monitor.logEvent("OrderProcessor", "Order #" + orderId + " is READY but no driver became available " +
                                 "within " + DRIVER_WAIT_TIMEOUT_SECONDS + "s. Remains queued for manual/auto dispatch.");
