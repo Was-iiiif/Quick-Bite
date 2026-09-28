@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="com.quickbite.controller.fxml.RestaurantDashboardController"
+            prefWidth="1100" prefHeight="750" style="-fx-background-color:#0E0E10;">
+
+    <!-- ============ TOP NAV BAR ============ -->
+    <top>
+        <HBox spacing="12" alignment="CENTER_LEFT"
+              style="-fx-background-color:#121216; -fx-padding:12 20; -fx-border-color:#24242C; -fx-border-width:0 0 1 0;">
+            <children>
+                <Label text="QuickBite Restaurant Portal" style="-fx-font-size:18px; -fx-font-weight:bold; -fx-text-fill:#FF5722;"/>
+                <Region HBox.hgrow="ALWAYS"/>
+                <Label text="Active Outlet:" style="-fx-font-size:11px; -fx-font-weight:bold; -fx-text-fill:#9CA3AF;"/>
+                <ComboBox fx:id="cmbRestaurants" style="-fx-background-color:#1C1C22;"/>
+                <Button fx:id="btnRegisterNav" text="➕ Register Restaurant" onAction="#handleRegisterRestaurant"
+                        style="-fx-background-color:#10B981; -fx-text-fill:white; -fx-font-weight:bold; -fx-background-radius:6px;"/>
+                <Label fx:id="lblUser" text="No Restaurant Yet | Admin: Marco Rossi" style="-fx-text-fill:white; -fx-font-weight:bold;"/>
+                <Label text="Restaurant Admin"
+                       style="-fx-background-color:#38241D; -fx-text-fill:#FF5722; -fx-border-color:#FF5722; -fx-border-radius:12px; -fx-background-radius:12px; -fx-padding:3 8;"/>
+                <Button fx:id="btnLogout" text="Logout" onAction="#handleLogout"
+                        style="-fx-background-color:#EF4444; -fx-text-fill:white; -fx-font-weight:bold; -fx-background-radius:6px;"/>
+            </children>
+        </HBox>
+    </top>
+
+    <!-- ============ CENTER: STATS + TABS ============ -->
+    <center>
+        <VBox spacing="16">
+            <padding><Insets top="16" right="16" bottom="16" left="16"/></padding>
+            <children>
+
+                <!-- Stat cards -->
+                <HBox spacing="16" alignment="CENTER">
+                    <children>
+                        <VBox spacing="4" HBox.hgrow="ALWAYS" style="-fx-background-color:#17171C; -fx-background-radius:10px; -fx-border-color:#24242C; -fx-border-radius:10px; -fx-padding:14;">
+                            <children>
+                                <Label text="Total Orders" style="-fx-font-size:11px; -fx-font-weight:bold; -fx-text-fill:#9CA3AF;"/>
+                                <Label fx:id="lblTotalOrders" text="0" style="-fx-font-size:22px; -fx-font-weight:bold; -fx-text-fill:white;"/>
+                            </children>
+                        </VBox>
+                        <VBox spacing="4" HBox.hgrow="ALWAYS" style="-fx-background-color:#17171C; -fx-background-radius:10px; -fx-border-color:#24242C; -fx-border-radius:10px; -fx-padding:14;">
+                            <children>
+                                <Label text="Total Revenue" style="-fx-font-size:11px; -fx-font-weight:bold; -fx-text-fill:#9CA3AF;"/>
+                                <Label fx:id="lblTotalRevenue" text="BDT 0.00" style="-fx-font-size:22px; -fx-font-weight:bold; -fx-text-fill:#10B981;"/>
+                            </children>
+                        </VBox>
+                        <VBox spacing="4" HBox.hgrow="ALWAYS" style="-fx-background-color:#17171C; -fx-background-radius:10px; -fx-border-color:#24242C; -fx-border-radius:10px; -fx-padding:14;">
+                            <children>
+                                <Label text="Active Orders" style="-fx-font-size:11px; -fx-font-weight:bold; -fx-text-fill:#9CA3AF;"/>
+                                <Label fx:id="lblActiveOrders" text="0" style="-fx-font-size:22px; -fx-font-weight:bold; -fx-text-fill:#F59E0B;"/>
+                            </children>
+                        </VBox>
+                        <VBox spacing="4" HBox.hgrow="ALWAYS" style="-fx-background-color:#17171C; -fx-background-radius:10px; -fx-border-color:#24242C; -fx-border-radius:10px; -fx-padding:14;">
+                            <children>
+                                <Label text="Store Rating" style="-fx-font-size:11px; -fx-font-weight:bold; -fx-text-fill:#9CA3AF;"/>
+                                <Label fx:id="lblRating" text="5.0 ★" style="-fx-font-size:22px; -fx-font-weight:bold; -fx-text-fill:#FF5722;"/>
+                            </children>
+                        </VBox>
+                    </children>
+                </HBox>
+
+                <!-- Tabbed content -->
+                <TabPane fx:id="tabPane" tabClosingPolicy="UNAVAILABLE" VBox.vgrow="ALWAYS">
+                    <tabs>
+
+                        <!-- Tab 1: Incoming Orders -->
+                        <Tab text="📋 Incoming Orders &amp; Fulfillment">
+                            <content>
+                                <VBox spacing="12">
+                                    <padding><Insets top="16"/></padding>
+                                    <children>
+                                        <TableView fx:id="ordersTable" VBox.vgrow="ALWAYS">
+                                            <columns>
+                                                <TableColumn text="Order ID" prefWidth="80"/>
+                                                <TableColumn text="Customer" prefWidth="150"/>
+                                                <TableColumn text="Dishes Ordered" prefWidth="260"/>
+                                                <TableColumn text="Total (BDT)" prefWidth="110"/>
+                                                <TableColumn text="Status" prefWidth="140"/>
+                                                <TableColumn text="Placed At" prefWidth="150"/>
+                                            </columns>
+                                        </TableView>
+                                        <HBox spacing="12" alignment="CENTER_LEFT">
+                                            <children>
+                                                <Button fx:id="btnAccept" text="✔ Accept Order (Confirm)" onAction="#handleAccept"
+                                                        style="-fx-background-color:#2563EB; -fx-text-fill:white; -fx-font-weight:bold; -fx-background-radius:6px;"/>
+                                                <Button fx:id="btnPreparing" text="🍳 Start Preparing" onAction="#handlePreparing"
+                                                        style="-fx-background-color:#4F46E5; -fx-text-fill:white; -fx-font-weight:bold; -fx-background-radius:6px;"/>
+                                                <Button fx:id="btnReady" text="📦 Ready for Delivery" onAction="#handleReady"
+                                                        style="-fx-background-color:#10B981; -fx-text-fill:white; -fx-font-weight:bold; -fx-background-radius:6px;"/>
+                                                <Button fx:id="btnReject" text="✕ Reject / Cancel" onAction="#handleReject"
+                                                        style="-fx-background-color:#EF4444; -fx-text-fill:white; -fx-font-weight:bold; -fx-background-radius:6px;"/>
+                                                <Button fx:id="btnRefreshOrders" text="🔄 Refresh" onAction="#handleRefreshOrders"
+                                                        style="-fx-background-color:#24242C; -fx-text-fill:white; -fx-border-color:#3F3F4E; -fx-background-radius:6px;"/>
+                                            </children>
+                                        </HBox>
+                                    </children>
+                                </VBox>
+                            </content>
+                        </Tab>
+
+                        <!-- Tab 2: Menu Management -->
+                        <Tab text="🍕 Menu Management (CRUD &amp; JSON)">
+                            <content>
+                                <VBox spacing="12">
+                                    <padding><Insets top="16"/></padding>
+                                    <children>
+                                        <TableView fx:id="menuTable" VBox.vgrow="ALWAYS">
+                                            <columns>
+                                                <TableColumn text="ID" prefWidth="50"/>
+                                                <TableColumn text="Image" prefWidth="90"/>
+                                                <TableColumn text="Item Name" prefWidth="180"/>
+                                                <TableColumn text="Category" prefWidth="110"/>
+                                                <TableColumn text="Price (BDT)" prefWidth="100"/>
+                                                <TableColumn text="Availability" prefWidth="100"/>
+                                                <TableColumn text="Description" prefWidth="220"/>
+                                            </columns>
+                                        </TableView>
+                                        <HBox spacing="10" alignment="CENTER_LEFT">
+                                            <children>
+                                                <Button fx:id="btnAddDish" text="+ Add Dish" onAction="#handleAddDish"
+                                                        style="-fx-background-color:#10B981; -fx-text-fill:white; -fx-font-weight:bold; -fx-background-radius:6px;"/>
+                                                <Button fx:id="btnEditDish" text="✎ Edit Dish" onAction="#handleEditDish"
+                                                        style="-fx-background-color:#2563EB; -fx-text-fill:white; -fx-font-weight:bold; -fx-background-radius:6px;"/>
+                                                <Button fx:id="btnDeleteDish" text="✕ Delete" onAction="#handleDeleteDish"
+                                                        style="-fx-background-color:#EF4444; -fx-text-fill:white; -fx-font-weight:bold; -fx-background-radius:6px;"/>
+                                                <Button fx:id="btnToggleAvail" text="Toggle Stock Availability" onAction="#handleToggleAvailability"
+                                                        style="-fx-background-color:#D97706; -fx-text-fill:white; -fx-font-weight:bold; -fx-background-radius:6px;"/>
+                                                <Region HBox.hgrow="ALWAYS"/>
+                                                <Button fx:id="btnExportJson" text="📤 Export Menu (JSON)" onAction="#handleExportMenu"
+                                                        style="-fx-background-color:#24242C; -fx-text-fill:white; -fx-border-color:#3F3F4E; -fx-background-radius:6px;"/>
+                                                <Button fx:id="btnImportJson" text="📥 Import Menu (JSON)" onAction="#handleImportMenu"
+                                                        style="-fx-background-color:#0D9488; -fx-text-fill:white; -fx-font-weight:bold; -fx-background-radius:6px;"/>
+                                            </children>
+                                        </HBox>
+                                    </children>
+                                </VBox>
+                            </content>
+                        </Tab>
+
+                        <!-- Tab 3: Registered Outlets -->
+                        <Tab text="🏪 Registered Outlets (Customer Marketplace)">
+                            <content>
+                                <VBox spacing="12">
+                                    <padding><Insets top="16"/></padding>
+                                    <children>
+                                        <TableView fx:id="registeredTable" VBox.vgrow="ALWAYS">
+                                            <columns>
+                                                <TableColumn text="ID" prefWidth="50"/>
+                                                <TableColumn text="Banner" prefWidth="90"/>
+                                                <TableColumn text="Restaurant / Outlet" prefWidth="160"/>
+                                                <TableColumn text="Cuisine / Tagline" prefWidth="180"/>
+                                                <TableColumn text="Address" prefWidth="160"/>
+                                                <TableColumn text="Phone" prefWidth="120"/>
+                                                <TableColumn text="Rating" prefWidth="70"/>
+                                                <TableColumn text="Marketplace Status" prefWidth="150"/>
+                                            </columns>
+                                        </TableView>
+                                        <HBox spacing="10" alignment="CENTER_LEFT">
+                                            <children>
+                                                <Button fx:id="btnAddRestaurant" text="➕ Register New Restaurant" onAction="#handleAddRestaurant"
+                                                        style="-fx-background-color:#10B981; -fx-text-fill:white; -fx-font-weight:bold; -fx-background-radius:6px;"/>
+                                                <Button fx:id="btnEditRestaurant" text="✎ Edit Details" onAction="#handleEditRestaurant"
+                                                        style="-fx-background-color:#2563EB; -fx-text-fill:white; -fx-font-weight:bold; -fx-background-radius:6px;"/>
+                                                <Button fx:id="btnDeleteRestaurant" text="🗑 Unregister / Delete" onAction="#handleDeleteRestaurant"
+                                                        style="-fx-background-color:#EF4444; -fx-text-fill:white; -fx-font-weight:bold; -fx-background-radius:6px;"/>
+                                                <Button fx:id="btnSetActive" text="✔ Select Active for Menu/Orders" onAction="#handleSetActive"
+                                                        style="-fx-background-color:#D97706; -fx-text-fill:white; -fx-font-weight:bold; -fx-background-radius:6px;"/>
+                                                <Region HBox.hgrow="ALWAYS"/>
+                                                <Button fx:id="btnRefreshRestaurants" text="🔄 Refresh List" onAction="#handleRefreshRestaurants"
+                                                        style="-fx-background-color:#24242C; -fx-text-fill:white; -fx-border-color:#3F3F4E; -fx-background-radius:6px;"/>
+                                            </children>
+                                        </HBox>
+                                    </children>
+                                </VBox>
+                            </content>
+                        </Tab>
+
+                    </tabs>
+                </TabPane>
+
+            </children>
+        </VBox>
+    </center>
+
+</BorderPane>

@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<HBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.quickbite.controller.fxml.LoginController"
+      prefWidth="960" prefHeight="660" style="-fx-background-color:#0D0D0D;">
+    <children>
+
+        <!-- ============ LEFT BRANDING PANEL ============ -->
+        <VBox prefWidth="300" minWidth="300" maxWidth="300" spacing="12" style="-fx-background-color:#141414;">
+            <padding><Insets top="32" right="28" bottom="32" left="28"/></padding>
+            <children>
+                <HBox spacing="10" alignment="CENTER_LEFT">
+                    <children>
+                        <Label text="⚡" style="-fx-font-size:16px; -fx-background-color:#FF6B00; -fx-text-fill:white; -fx-background-radius:8px; -fx-padding:6px 9px;"/>
+                        <Label text="Quick Bite" style="-fx-font-size:15px; -fx-font-weight:bold; -fx-text-fill:white;"/>
+                    </children>
+                </HBox>
+
+                <Region VBox.vgrow="ALWAYS"/>
+
+                <Label text="Good food" style="-fx-font-size:30px; -fx-font-weight:bold; -fx-font-style:italic; -fx-text-fill:white;"/>
+                <Label text="good mood" style="-fx-font-size:30px; -fx-font-weight:bold; -fx-font-style:italic; -fx-text-fill:#FF6B00;"/>
+                <Label wrapText="true" text="A single platform connecting hungry customers, restaurant partners, and delivery riders."
+                       style="-fx-font-size:11px; -fx-text-fill:#777777;"/>
+
+                <HBox spacing="22">
+                    <padding><Insets top="12"/></padding>
+                    <children>
+                        <VBox spacing="3"><children>
+                            <Label text="03" style="-fx-font-size:18px; -fx-font-weight:bold; -fx-text-fill:white;"/>
+                            <Label text="Restaurants" style="-fx-font-size:10px; -fx-text-fill:#777777;"/>
+                        </children></VBox>
+                        <VBox spacing="3"><children>
+                            <Label text="98%" style="-fx-font-size:18px; -fx-font-weight:bold; -fx-text-fill:white;"/>
+                            <Label text="On-time rate" style="-fx-font-size:10px; -fx-text-fill:#777777;"/>
+                        </children></VBox>
+                        <VBox spacing="3"><children>
+                            <Label text="18 min" style="-fx-font-size:18px; -fx-font-weight:bold; -fx-text-fill:white;"/>
+                            <Label text="Avg. delivery" style="-fx-font-size:10px; -fx-text-fill:#777777;"/>
+                        </children></VBox>
+                    </children>
+                </HBox>
+
+                <Region VBox.vgrow="ALWAYS"/>
+
+                <VBox spacing="12" style="-fx-background-color:#1E1E1E; -fx-background-radius:10px; -fx-padding:16px;">
+                    <children>
+                        <Label wrapText="true" text="&quot;Delicious food, fast delivery, and a seamless ordering experience. I never have to worry about dinner anymore!&quot;"
+                               style="-fx-font-size:11px; -fx-font-style:italic; -fx-text-fill:#CCCCCC;"/>
+                        <HBox spacing="10" alignment="CENTER_LEFT">
+                            <children>
+                                <Label text="S" style="-fx-background-color:#FF6B00; -fx-text-fill:white; -fx-font-weight:bold; -fx-min-width:34px; -fx-min-height:34px; -fx-background-radius:17px; -fx-alignment:center;"/>
+                                <VBox spacing="2"><children>
+                                    <Label text="Sadia Jahan Turabe" style="-fx-font-size:12px; -fx-font-weight:bold; -fx-text-fill:white;"/>
+                                    <Label text="Verified Customer" style="-fx-font-size:10px; -fx-text-fill:#777777;"/>
+                                </children></VBox>
+                            </children>
+                        </HBox>
+                    </children>
+                </VBox>
+            </children>
+        </VBox>
+
+        <!-- ============ RIGHT SIGN-IN FORM ============ -->
+        <VBox HBox.hgrow="ALWAYS" alignment="TOP_CENTER" style="-fx-background-color:#0D0D0D;">
+            <padding><Insets top="40" right="64" bottom="40" left="64"/></padding>
+            <children>
+                <VBox maxWidth="420" spacing="14">
+                    <children>
+
+                        <Label text="Welcome back" style="-fx-font-size:26px; -fx-font-weight:bold; -fx-text-fill:white;"/>
+                        <Label text="Select your role, then sign in to continue." style="-fx-font-size:12px; -fx-text-fill:#777777;"/>
+
+                        <!-- Role selector cards -->
+                        <HBox fx:id="roleRow" spacing="10">
+                            <children>
+                                <VBox fx:id="cardCustomer" alignment="CENTER" spacing="6" prefWidth="128" prefHeight="94"
+                                      style="-fx-background-color:#1E0900; -fx-border-color:#FF6B00; -fx-border-width:1.8px; -fx-border-radius:10px; -fx-background-radius:10px;"
+                                      onMouseClicked="#handleSelectCustomerRole">
+                                    <children>
+                                        <Label text="🛒" style="-fx-font-size:22px;"/>
+                                        <Label text="Customer" style="-fx-font-size:12px; -fx-font-weight:bold; -fx-text-fill:white;"/>
+                                        <Label wrapText="true" text="Order &amp; Track your food" style="-fx-font-size:9px; -fx-text-fill:#777777;"/>
+                                    </children>
+                                </VBox>
+                                <VBox fx:id="cardRestaurant" alignment="CENTER" spacing="6" prefWidth="128" prefHeight="94"
+                                      style="-fx-background-color:#1A1A1A; -fx-border-color:#2E2E2E; -fx-border-radius:10px; -fx-background-radius:10px;"
+                                      onMouseClicked="#handleSelectRestaurantRole">
+                                    <children>
+                                        <Label text="🏠" style="-fx-font-size:22px;"/>
+                                        <Label text="Restaurant" style="-fx-font-size:12px; -fx-font-weight:bold; -fx-text-fill:white;"/>
+                                        <Label wrapText="true" text="Manage orders &amp; menu" style="-fx-font-size:9px; -fx-text-fill:#777777;"/>
+                                    </children>
+                                </VBox>
+                                <VBox fx:id="cardRider" alignment="CENTER" spacing="6" prefWidth="128" prefHeight="94"
+                                      style="-fx-background-color:#1A1A1A; -fx-border-color:#2E2E2E; -fx-border-radius:10px; -fx-background-radius:10px;"
+                                      onMouseClicked="#handleSelectRiderRole">
+                                    <children>
+                                        <Label text="🕐" style="-fx-font-size:22px;"/>
+                                        <Label text="Rider" style="-fx-font-size:12px; -fx-font-weight:bold; -fx-text-fill:white;"/>
+                                        <Label wrapText="true" text="Pick up &amp; deliver orders" style="-fx-font-size:9px; -fx-text-fill:#777777;"/>
+                                    </children>
+                                </VBox>
+                            </children>
+                        </HBox>
+
+                        <Label fx:id="lblSigningAs" text="● Signing in as  Customer" maxWidth="Infinity"
+                               style="-fx-background-color:#2A1200; -fx-text-fill:#FF6B00; -fx-font-size:12px; -fx-font-weight:bold; -fx-padding:8px 14px; -fx-background-radius:6px;"/>
+
+                        <Label text="Email address" style="-fx-font-size:11px; -fx-text-fill:#AAAAAA;"/>
+                        <TextField fx:id="txtEmail" promptText="you@example.com"/>
+
+                        <HBox alignment="CENTER_LEFT">
+                            <children>
+                                <Label text="Password" style="-fx-font-size:11px; -fx-text-fill:#AAAAAA;"/>
+                                <Region HBox.hgrow="ALWAYS"/>
+                                <Label text="Forgot password?" style="-fx-font-size:11px; -fx-text-fill:#FF6B00;"/>
+                            </children>
+                        </HBox>
+                        <PasswordField fx:id="txtPassword" promptText="••••••••"/>
+
+                        <CheckBox text="Keep me signed in for 30 days" style="-fx-text-fill:#888888; -fx-font-size:11px;"/>
+
+                        <Button fx:id="btnSignIn" text="Sign in as Customer" maxWidth="Infinity" onAction="#handleSignIn"
+                                style="-fx-background-color:#FF6B00; -fx-text-fill:white; -fx-font-size:14px; -fx-font-weight:bold; -fx-padding:13px; -fx-background-radius:8px;"/>
+
+                        <HBox alignment="CENTER" spacing="4">
+                            <children>
+                                <Label text="Don't have an account?" style="-fx-font-size:11px; -fx-text-fill:#777777;"/>
+                                <Label fx:id="lnkCreateAccount" text="Create one" onMouseClicked="#handleOpenRegister"
+                                       style="-fx-font-size:11px; -fx-text-fill:#FF6B00; -fx-underline:true;"/>
+                            </children>
+                        </HBox>
+
+                        <HBox alignment="CENTER" spacing="10">
+                            <children>
+                                <Separator HBox.hgrow="ALWAYS"/>
+                                <Label text="or continue with" style="-fx-font-size:11px; -fx-text-fill:#444444;"/>
+                                <Separator HBox.hgrow="ALWAYS"/>
+                            </children>
+                        </HBox>
+
+                        <HBox alignment="CENTER" spacing="12">
+                            <children>
+                                <Button text="🌐  Google" prefWidth="188" style="-fx-background-color:#1A1A1A; -fx-text-fill:white; -fx-background-radius:8px; -fx-border-color:#2E2E2E;"/>
+                                <Button text="🍎  Apple" prefWidth="188" style="-fx-background-color:#1A1A1A; -fx-text-fill:white; -fx-background-radius:8px; -fx-border-color:#2E2E2E;"/>
+                            </children>
+                        </HBox>
+
+                    </children>
+                </VBox>
+            </children>
+        </VBox>
+
+    </children>
+</HBox>
